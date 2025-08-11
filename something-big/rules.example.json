@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "sbv2": {
+      "$room": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Something Big v2 — Multiplayer Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Firebase v9 compat (classic) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title">
+        <h1>🦴 Something Big v2</h1>
+        <span class="badge">multiplayer prototype</span>
+      </div>
+      <div class="status">
+        <span id="conn" class="pill">offline</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="row">
+        <input id="name" placeholder="Your name" />
+        <input id="room" placeholder="Room code (e.g., museum)" />
+        <button id="join">Join / Create Room</button>
+      </div>
+      <div class="row hint">
+        <b>Setup:</b> Each player starts with 3 <i>Tiny</i> cards (face-down). On your turn: <b>DIG</b> from a pile or <b>BID</b> from an auction. Then <b>EXHIBIT</b> (flip) one in your plot.
+      </div>
+    </section>
+
+    <main class="layout">
+      <section class="panel piles">
+        <h2>Dig Site (face-down piles)</h2>
+        <div class="piles-grid" id="piles"></div>
+      </section>
+
+      <section class="panel auctions">
+        <h2>Auctions (face-up discard)</h2>
+        <div class="auctions-grid" id="auctions"></div>
+      </section>
+
+      <section class="panel you">
+        <h2>Your Plot</h2>
+        <div class="hand" id="hand"></div>
+        <div class="actions">
+          <button id="action-dig" disabled>DIG</button>
+          <button id="action-bid" disabled>BID</button>
+          <button id="action-exhibit" disabled>EXHIBIT</button>
+        </div>
+        <div class="turn" id="turnBox">Join a room to start.</div>
+      </section>
+
+      <section class="panel table">
+        <h2>Players</h2>
+        <div id="players"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Simple modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
