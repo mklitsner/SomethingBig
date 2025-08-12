@@ -120,23 +120,23 @@
       }
 
       .card.small {
-        width: 126px;
-        height: 180px;
+        width: 180px;
+        height: 126px;
       }
 
       .card.big {
-        width: 180px; /* 2.5 inches at 72 DPI */
-        height: 252px; /* 3.5 inches at 72 DPI */
+        width: 360px;
+        height: 252px;
       }
 
       .card.huge {
-        width: 252px; /* 3.5 inches at 72 DPI */
-        height: 360px; /* 5 inches at 72 DPI */
+        width: 540px;
+        height: 378px;
       }
 
       .card.giant {
-        width: 360px; /* 5 inches at 72 DPI */
-        height: 504px; /* 7 inches at 72 DPI */
+        width: 720px;
+        height: 504px;
       }
 
       .card.front {
@@ -1259,20 +1259,22 @@
         }
       }
 
+      const sizeUnitsMap = {
+        tiny: { w: 1, h: 1 },
+        small: { w: 2, h: 1 },
+        big: { w: 4, h: 2 },
+        huge: { w: 6, h: 3 },
+        giant: { w: 8, h: 4 },
+      };
+
       function getCardWidth(size) {
-        const sizes = { tiny: 90, small: 126, big: 180, huge: 252, giant: 360 };
-        return sizes[size] || 90;
+        const units = sizeUnitsMap[size] || sizeUnitsMap.tiny;
+        return units.w * 90;
       }
 
       function getCardHeight(size) {
-        const sizes = {
-          tiny: 126,
-          small: 180,
-          big: 252,
-          huge: 360,
-          giant: 504,
-        };
-        return sizes[size] || 126;
+        const units = sizeUnitsMap[size] || sizeUnitsMap.tiny;
+        return units.h * 126;
       }
 
       function getSlotMaxSize(cardSize) {
@@ -1454,9 +1456,11 @@
             centerY > rect.top &&
             centerY < rect.bottom
           ) {
-            const pos = getNextLayerSlotPosition(zone);
-            highlight.style.left = pos.x - rect.left + "px";
-            highlight.style.top = pos.y - rect.top + "px";
+            const pos = getNextLayerSlotPosition(zone, draggedCard.dataset.size);
+            const zoneLeft = parseFloat(zone.style.left) || 0;
+            const zoneTop = parseFloat(zone.style.top) || 0;
+            highlight.style.left = pos.x - zoneLeft + "px";
+            highlight.style.top = pos.y - zoneTop + "px";
             highlight.style.width = draggedCard.offsetWidth + "px";
             highlight.style.height = draggedCard.offsetHeight + "px";
             highlight.style.display = "block";
@@ -1466,30 +1470,80 @@
         });
       }
 
-      function hideLayeredZoneHighlights() {
-        document
-          .querySelectorAll(".layer-highlight")
-          .forEach((h) => (h.style.display = "none"));
-      }
+        function hideLayeredZoneHighlights() {
+          document
+            .querySelectorAll(".layer-highlight")
+            .forEach((h) => (h.style.display = "none"));
+        }
 
-      function getNextLayerSlotPosition(zone) {
-        const left = parseFloat(zone.style.left) || 0;
-        const top = parseFloat(zone.style.top) || 0;
-        const cellW = 90;
-        const cellH = 126;
-        const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
-        const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
-        const capacity = cols * rows;
-        const index = (zoneCards[zone.id] || []).length;
-        const layer = Math.floor(index / capacity);
-        const idx = index % capacity;
-        const col = idx % cols;
-        const row = Math.floor(idx / cols);
-        return {
-          x: left + col * cellW + layer * 5,
-          y: top + row * cellH + layer * 5,
-        };
-      }
+        function getSizeUnits(size) {
+          return sizeUnitsMap[size] || sizeUnitsMap.tiny;
+        }
+
+        function createGrid(rows, cols) {
+          return Array.from({ length: rows }, () => Array(cols).fill(false));
+        }
+
+        function findSlot(grid, cols, rows, w, h) {
+          for (let r = 0; r <= rows - h; r++) {
+            for (let c = 0; c <= cols - w; c++) {
+              let free = true;
+              for (let dr = 0; dr < h && free; dr++) {
+                for (let dc = 0; dc < w; dc++) {
+                  if (grid[r + dr][c + dc]) {
+                    free = false;
+                    break;
+                  }
+                }
+              }
+              if (free) return { col: c, row: r };
+            }
+          }
+          return null;
+        }
+
+        function markSlot(grid, col, row, w, h) {
+          for (let r = 0; r < h; r++) {
+            for (let c = 0; c < w; c++) {
+              grid[row + r][col + c] = true;
+            }
+          }
+        }
+
+        function getNextLayerSlotPosition(zone, size) {
+          const left = parseFloat(zone.style.left) || 0;
+          const top = parseFloat(zone.style.top) || 0;
+          const cellW = 90;
+          const cellH = 126;
+          const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
+          const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
+          let layer = 0;
+          let grid = createGrid(rows, cols);
+          const ids = zoneCards[zone.id] || [];
+          ids.forEach((id) => {
+            const card = document.getElementById(id);
+            if (!card) return;
+            const { w, h } = getSizeUnits(card.dataset.size);
+            let slot = findSlot(grid, cols, rows, w, h);
+            while (!slot) {
+              layer++;
+              grid = createGrid(rows, cols);
+              slot = findSlot(grid, cols, rows, w, h);
+            }
+            markSlot(grid, slot.col, slot.row, w, h);
+          });
+          const { w, h } = getSizeUnits(size);
+          let slot = findSlot(grid, cols, rows, w, h);
+          while (!slot) {
+            layer++;
+            grid = createGrid(rows, cols);
+            slot = findSlot(grid, cols, rows, w, h);
+          }
+          return {
+            x: left + slot.col * cellW + layer * 5,
+            y: top + slot.row * cellH + layer * 5,
+          };
+        }
 
       function isOverlapping(rect1, rect2) {
         return !(
@@ -2026,16 +2080,21 @@
         const cellH = 126;
         const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
         const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
-        const capacity = cols * rows;
+        let layer = 0;
+        let grid = createGrid(rows, cols);
         ids.forEach((id, index) => {
           const card = document.getElementById(id);
           if (!card) return;
-          const layer = Math.floor(index / capacity);
-          const idx = index % capacity;
-          const col = idx % cols;
-          const row = Math.floor(idx / cols);
-          card.style.left = left + col * cellW + layer * 5 + "px";
-          card.style.top = top + row * cellH + layer * 5 + "px";
+          const { w, h } = getSizeUnits(card.dataset.size);
+          let slot = findSlot(grid, cols, rows, w, h);
+          while (!slot) {
+            layer++;
+            grid = createGrid(rows, cols);
+            slot = findSlot(grid, cols, rows, w, h);
+          }
+          markSlot(grid, slot.col, slot.row, w, h);
+          card.style.left = left + slot.col * cellW + layer * 5 + "px";
+          card.style.top = top + slot.row * cellH + layer * 5 + "px";
           card.style.zIndex = 1000 + index;
           card.classList.add("back");
           card.classList.remove("front");
