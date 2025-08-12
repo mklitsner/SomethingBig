@@ -836,34 +836,18 @@
                 let newLeft = startLeft + deltaX;
                 let newBottom = startBottom + deltaY;
                 
-                // Get slot's actual dimensions and rotation
-                const rotation = parseInt(slot.dataset.rotation) || 0;
+                // Get slot's base dimensions
                 const originalWidth = parseFloat(slot.style.width) || 80;
                 const originalHeight = parseFloat(slot.style.height) || 116;
-                
-                // Calculate the bounding box dimensions after rotation
-                let boundingWidth, boundingHeight;
-                
-                if (rotation === 0 || rotation === 180) {
-                    // No rotation or 180° rotation - same bounding box
-                    boundingWidth = originalWidth;
-                    boundingHeight = originalHeight;
-                } else if (rotation === 90 || rotation === 270) {
-                    // 90° or 270° rotation - width and height are swapped
-                    boundingWidth = originalHeight;
-                    boundingHeight = originalWidth;
-                } else {
-                    // For other angles, calculate bounding box (though we only use 90° increments)
-                    const radians = (rotation * Math.PI) / 180;
-                    const sin = Math.abs(Math.sin(radians));
-                    const cos = Math.abs(Math.cos(radians));
-                    boundingWidth = originalWidth * cos + originalHeight * sin;
-                    boundingHeight = originalWidth * sin + originalHeight * cos;
-                }
-                
+
+                // Use the actual bounding box (accounts for rotation and zoom)
+                const slotRect = slot.getBoundingClientRect();
+                const boundingWidth = slotRect.width / currentZoom;
+                const boundingHeight = slotRect.height / currentZoom;
+
                 // Keep slot within parent card bounds using bounding box dimensions
-                const parentWidth = parentCard.offsetWidth;
-                const parentHeight = parentCard.offsetHeight;
+                const parentWidth = parentCard.clientWidth;
+                const parentHeight = parentCard.clientHeight;
                 
                 // For rotated elements, we need to account for the center point offset
                 const centerOffsetX = (boundingWidth - originalWidth) / 2;
