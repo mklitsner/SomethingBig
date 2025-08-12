@@ -44,6 +44,7 @@
         }
 
         .card.dragging {
+            z-index: 1000;
             transform: rotate(5deg) scale(1.1);
         }
 
@@ -665,16 +666,6 @@
         let stacks = [];
         let currentZoom = 1.0;
         let slotRelationships = {}; // Track which cards are in which slots
-
-        function bringCardToFront(card) {
-            const cards = document.querySelectorAll('.card');
-            let maxZ = 0;
-            cards.forEach(c => {
-                const z = parseInt(c.style.zIndex) || 0;
-                if (z > maxZ) maxZ = z;
-            });
-            card.style.zIndex = maxZ + 1;
-        }
 
         function addCard(size, points = null, age = null, slots = null) {
             cardCounter++;
@@ -1465,7 +1456,6 @@
                 isDragging = true;
                 draggedCard = card;
                 draggedCard.classList.add('dragging');
-                bringCardToFront(draggedCard);
             }, dragDelay);
 
             function drag(e) {
@@ -1476,7 +1466,6 @@
                     isDragging = true;
                     draggedCard = card;
                     draggedCard.classList.add('dragging');
-                    bringCardToFront(draggedCard);
                 }
                 
                 if (!isDragging || !draggedCard) return;
