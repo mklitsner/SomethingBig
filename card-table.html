@@ -210,7 +210,7 @@
         font-weight: bold;
       }
 
-      .exhibit-btn,
+      .flip-btn,
       .rotate-btn {
         position: absolute;
         top: 5px;
@@ -224,19 +224,19 @@
         display: none;
       }
 
-      .exhibit-btn {
+      .flip-btn {
         right: 5px;
       }
       .rotate-btn {
         right: 30px;
       }
 
-      .card:hover .exhibit-btn,
+      .card:hover .flip-btn,
       .card:hover .rotate-btn {
         display: block;
       }
 
-      .board-edit-mode .exhibit-btn,
+      .board-edit-mode .flip-btn,
       .board-edit-mode .rotate-btn {
         display: none !important;
       }
@@ -934,12 +934,12 @@
 
         card.appendChild(optionsBtn);
 
-        // Exhibit button appears on hover
-        const exhibitBtn = document.createElement("div");
-        exhibitBtn.className = "exhibit-btn";
-        exhibitBtn.textContent = "Exhibit";
-        exhibitBtn.addEventListener("click", () => exhibitCard(card.id));
-        card.appendChild(exhibitBtn);
+        // Flip button appears on hover
+        const flipBtn = document.createElement("div");
+        flipBtn.className = "flip-btn";
+        flipBtn.textContent = "Flip";
+        flipBtn.addEventListener("click", () => flipCard(card.id));
+        card.appendChild(flipBtn);
 
         // Rotate button appears on hover
         const rotateBtn = document.createElement("div");
@@ -1454,14 +1454,26 @@
             centerY > rect.top &&
             centerY < rect.bottom
           ) {
-            const pos = getNextLayerSlotPosition(zone, draggedCard.dataset.size);
+            const pos = getNextLayerSlotPosition(
+              zone,
+              draggedCard.dataset.size,
+              draggedCard.dataset.rotation,
+            );
             const zoneLeft = parseFloat(zone.style.left) || 0;
             const zoneTop = parseFloat(zone.style.top) || 0;
-            highlight.style.left = pos.x - zoneLeft + "px";
-            highlight.style.top = pos.y - zoneTop + "px";
-            highlight.style.width = draggedCard.offsetWidth + "px";
-            highlight.style.height = draggedCard.offsetHeight + "px";
-            highlight.style.display = "block";
+            if (pos) {
+              const { w, h } = getSizeUnits(
+                draggedCard.dataset.size,
+                draggedCard.dataset.rotation,
+              );
+              highlight.style.left = pos.x - zoneLeft + "px";
+              highlight.style.top = pos.y - zoneTop + "px";
+              highlight.style.width = w * 90 + "px";
+              highlight.style.height = h * 126 + "px";
+              highlight.style.display = "block";
+            } else {
+              highlight.style.display = "none";
+            }
           } else {
             highlight.style.display = "none";
           }
@@ -1474,11 +1486,15 @@
             .forEach((h) => (h.style.display = "none"));
         }
 
-        function getSizeUnits(size) {
+        function getSizeUnits(size, rotation = 0) {
           const cellW = 90; // base width of a tiny card
           const cellH = 126; // base height of a tiny card
-          const width = getCardWidth(size);
-          const height = getCardHeight(size);
+          let width = getCardWidth(size);
+          let height = getCardHeight(size);
+          rotation = parseInt(rotation, 10) % 360;
+          if (rotation === 90 || rotation === 270) {
+            [width, height] = [height, width];
+          }
           return {
             w: Math.ceil(width / cellW),
             h: Math.ceil(height / cellH),
@@ -1507,6 +1523,10 @@
           return null;
         }
 
+        function isGridFull(grid) {
+          return grid.every((row) => row.every((cell) => cell));
+        }
+
         function markSlot(grid, col, row, w, h) {
           for (let r = 0; r < h; r++) {
             for (let c = 0; c < w; c++) {
@@ -1515,7 +1535,7 @@
           }
         }
 
-        function getNextLayerSlotPosition(zone, size) {
+        function getNextLayerSlotPosition(zone, size, rotation = 0) {
           const left = parseFloat(zone.style.left) || 0;
           const top = parseFloat(zone.style.top) || 0;
           const cellW = 90;
@@ -1528,26 +1548,32 @@
           ids.forEach((id) => {
             const card = document.getElementById(id);
             if (!card) return;
-            const { w, h } = getSizeUnits(card.dataset.size);
+            const { w, h } = getSizeUnits(card.dataset.size, card.dataset.rotation);
             let slot = findSlot(grid, cols, rows, w, h);
-            while (!slot) {
+            if (!slot && isGridFull(grid)) {
               layer++;
               grid = createGrid(rows, cols);
               slot = findSlot(grid, cols, rows, w, h);
             }
-            markSlot(grid, slot.col, slot.row, w, h);
+            if (slot) markSlot(grid, slot.col, slot.row, w, h);
           });
-          const { w, h } = getSizeUnits(size);
-          let slot = findSlot(grid, cols, rows, w, h);
-          while (!slot) {
-            layer++;
-            grid = createGrid(rows, cols);
-            slot = findSlot(grid, cols, rows, w, h);
+          const rotations = [parseInt(rotation, 10) % 180, (parseInt(rotation, 10) + 90) % 180];
+          for (const rot of rotations) {
+            const { w, h } = getSizeUnits(size, rot);
+            let slot = findSlot(grid, cols, rows, w, h);
+            if (!slot && isGridFull(grid)) {
+              layer++;
+              grid = createGrid(rows, cols);
+              slot = findSlot(grid, cols, rows, w, h);
+            }
+            if (slot) {
+              return {
+                x: left + slot.col * cellW + layer * 5,
+                y: top + slot.row * cellH + layer * 5,
+              };
+            }
           }
-          return {
-            x: left + slot.col * cellW + layer * 5,
-            y: top + slot.row * cellH + layer * 5,
-          };
+          return null;
         }
 
       function isOverlapping(rect1, rect2) {
@@ -1663,9 +1689,9 @@
           menuHTML += `<div class="menu-item" onclick="changeCardAge('${card.id}')">Change Age</div>`;
           menuHTML += `<div class="menu-item" onclick="changeCardPoints('${card.id}')">Change Points</div>`;
           if (isFlipped) {
-            menuHTML += `<div class="menu-item" onclick="exhibitCard('${card.id}')">Turn Face Up</div>`;
+            menuHTML += `<div class="menu-item" onclick="flipCard('${card.id}')">Turn Face Up</div>`;
           } else {
-            menuHTML += `<div class="menu-item" onclick="turnFaceDown('${card.id}')">Turn Face Down</div>`;
+            menuHTML += `<div class="menu-item" onclick="flipCard('${card.id}')">Turn Face Down</div>`;
           }
           menuHTML += `<div class="menu-item" onclick="deleteCard('${card.id}')">Delete</div>`;
         }
@@ -1747,22 +1773,24 @@
         }
       }
 
-      function exhibitCard(cardId) {
+      function flipCard(cardId) {
         const card = document.getElementById(cardId);
         if (!card) return;
 
         const isFlipped = card.dataset.flipped === "true";
         const cardText = card.querySelector(".card-text");
 
-        // Only allow exhibiting if card is face down
         if (isFlipped) {
           card.className = card.className.replace("back", "front");
           cardText.textContent = `${card.dataset.size.toUpperCase()} ${card.id.split("-")[1]}`;
           card.dataset.flipped = "false";
+        } else {
+          card.className = card.className.replace("front", "back");
+          if (cardText) cardText.textContent = "";
+          card.dataset.flipped = "true";
         }
 
         updateCardMenu(card);
-        // Hide menu
         hideAllMenus();
       }
 
@@ -1820,10 +1848,10 @@
       }
 
       function startDrag(e) {
-        // Don't start drag if clicking on options button, exhibit button, or menu
+        // Don't start drag if clicking on options button, flip button, or menu
         if (
           e.target.classList.contains("card-options") ||
-          e.target.classList.contains("exhibit-btn") ||
+          e.target.classList.contains("flip-btn") ||
           e.target.classList.contains("rotate-btn") ||
           e.target.classList.contains("menu-item") ||
           e.target.closest(".options-menu")
@@ -2087,24 +2115,48 @@
         const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
         let layer = 0;
         let grid = createGrid(rows, cols);
-        ids.forEach((id, index) => {
+        const placed = [];
+        ids.forEach((id) => {
           const card = document.getElementById(id);
           if (!card) return;
-          const { w, h } = getSizeUnits(card.dataset.size);
-          let slot = findSlot(grid, cols, rows, w, h);
-          while (!slot) {
-            layer++;
-            grid = createGrid(rows, cols);
-            slot = findSlot(grid, cols, rows, w, h);
+          let rotation = parseInt(card.dataset.rotation || "0", 10);
+          const orientations = [rotation % 180, (rotation + 90) % 180];
+          let chosen = null;
+          for (const rot of orientations) {
+            const dims = getSizeUnits(card.dataset.size, rot);
+            let slot = findSlot(grid, cols, rows, dims.w, dims.h);
+            if (!slot) {
+              if (isGridFull(grid)) {
+                layer++;
+                grid = createGrid(rows, cols);
+                slot = findSlot(grid, cols, rows, dims.w, dims.h);
+              }
+            }
+            if (slot) {
+              chosen = { slot, dims, rot };
+              break;
+            }
           }
-          markSlot(grid, slot.col, slot.row, w, h);
-          card.style.left = left + slot.col * cellW + layer * 5 + "px";
-          card.style.top = top + slot.row * cellH + layer * 5 + "px";
-          card.style.zIndex = 1000 + index;
+          if (!chosen) {
+            delete card.dataset.zone;
+            return;
+          }
+          markSlot(grid, chosen.slot.col, chosen.slot.row, chosen.dims.w, chosen.dims.h);
+          let appliedRotation = rotation;
+          if (chosen.rot !== rotation % 180) {
+            appliedRotation = (rotation + 90) % 360;
+          }
+          card.dataset.rotation = String(appliedRotation);
+          card.style.transform = `rotate(${appliedRotation}deg)`;
+          card.style.left = left + chosen.slot.col * cellW + layer * 5 + "px";
+          card.style.top = top + chosen.slot.row * cellH + layer * 5 + "px";
+          card.style.zIndex = 1000 + placed.length;
           card.classList.add("back");
           card.classList.remove("front");
           card.dataset.flipped = "true";
+          placed.push(id);
         });
+        zoneCards[zone.id] = placed;
       }
 
       function releaseFromZone(card) {
@@ -2149,6 +2201,14 @@
               !allowed ||
               allowed === card.dataset.size
             ) {
+              if (zone.dataset.layered === "true") {
+                const pos = getNextLayerSlotPosition(
+                  zone,
+                  card.dataset.size,
+                  card.dataset.rotation,
+                );
+                if (!pos) return;
+              }
               if (!zoneCards[zone.id]) zoneCards[zone.id] = [];
               if (!zoneCards[zone.id].includes(card.id)) {
                 zoneCards[zone.id].push(card.id);
