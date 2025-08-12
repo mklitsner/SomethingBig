@@ -673,7 +673,19 @@
                 const z = parseInt(c.style.zIndex) || 0;
                 if (z > maxZ) maxZ = z;
             });
-            card.style.zIndex = maxZ + 1;
+            const newZ = maxZ + 1;
+            card.style.zIndex = newZ;
+
+            // Ensure any cards slotted into this card come along for the ride
+            Object.keys(slotRelationships).forEach(cardId => {
+                const relationship = slotRelationships[cardId];
+                if (relationship.hostCard === card.id) {
+                    const slottedCard = document.getElementById(cardId);
+                    if (slottedCard) {
+                        slottedCard.style.zIndex = newZ + 1;
+                    }
+                }
+            });
         }
 
         function addCard(size, points = null, age = null, slots = null) {
@@ -1452,7 +1464,10 @@
                 }
                 
                 if (!isDragging || !draggedCard) return;
-                
+
+                // Keep the dragged card (and any slotted cards) on top
+                bringCardToFront(draggedCard);
+
                 // Calculate how much the mouse has moved (in screen pixels)
                 const mouseDeltaX = e.clientX - startMouseX;
                 const mouseDeltaY = e.clientY - startMouseY;
