@@ -1475,14 +1475,14 @@
         }
 
         function getSizeUnits(size) {
-          switch (size) {
-            case "small":
-              return { w: 2, h: 1 };
-            case "big":
-              return { w: 2, h: 2 };
-            default:
-              return { w: 1, h: 1 };
-          }
+          const cellW = 90; // base width of a tiny card
+          const cellH = 126; // base height of a tiny card
+          const width = getCardWidth(size);
+          const height = getCardHeight(size);
+          return {
+            w: Math.ceil(width / cellW),
+            h: Math.ceil(height / cellH),
+          };
         }
 
         function createGrid(rows, cols) {
