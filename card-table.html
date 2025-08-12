@@ -44,7 +44,6 @@
         }
 
         .card.dragging {
-            z-index: 1000;
             transform: rotate(5deg) scale(1.1);
         }
 
@@ -667,6 +666,49 @@
         let currentZoom = 1.0;
         let slotRelationships = {}; // Track which cards are in which slots
 
+        function bringCardToFront(card) {
+            const cards = document.querySelectorAll('.card');
+            let maxZ = 0;
+            cards.forEach(c => {
+                const z = parseInt(c.style.zIndex) || 0;
+                if (z > maxZ) maxZ = z;
+            });
+
+            const cardsToRaise = [];
+            function collect(currentCard) {
+                cardsToRaise.push(currentCard);
+                Object.keys(slotRelationships).forEach(id => {
+                    const rel = slotRelationships[id];
+                    if (rel.hostCard === currentCard.id) {
+                        const child = document.getElementById(id);
+                        if (child) collect(child);
+                    }
+                });
+            }
+
+            collect(card);
+            cardsToRaise.forEach(c => {
+                c.style.zIndex = ++maxZ;
+            });
+        }
+
+        function updateSlotZIndices(card) {
+            let z = parseInt(card.style.zIndex) || 0;
+            function update(currentCard) {
+                Object.keys(slotRelationships).forEach(id => {
+                    const rel = slotRelationships[id];
+                    if (rel.hostCard === currentCard.id) {
+                        const child = document.getElementById(id);
+                        if (child) {
+                            child.style.zIndex = ++z;
+                            update(child);
+                        }
+                    }
+                });
+            }
+            update(card);
+        }
+
         function addCard(size, points = null, age = null, slots = null) {
             cardCounter++;
             const table = document.getElementById('table');
@@ -1186,6 +1228,7 @@
             card.style.left = finalX + 'px';
             card.style.top = finalY + 'px';
             card.style.zIndex = parseInt(slotCard.style.zIndex) + 1;
+            updateSlotZIndices(card);
             
             // Rotate the card to match the slot's rotation
             const slotRotation = parseInt(slot.dataset.rotation) || 0;
@@ -1428,6 +1471,7 @@
                 isDragging = true;
                 draggedCard = card;
                 draggedCard.classList.add('dragging');
+                bringCardToFront(draggedCard);
             }, dragDelay);
 
             function drag(e) {
@@ -1438,6 +1482,7 @@
                     isDragging = true;
                     draggedCard = card;
                     draggedCard.classList.add('dragging');
+                    bringCardToFront(draggedCard);
                 }
                 
                 if (!isDragging || !draggedCard) return;
