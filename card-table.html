@@ -120,6 +120,10 @@
             display: none;
         }
 
+        .card.back .card-slot {
+            display: none;
+        }
+
         .card-options {
             position: absolute;
             top: 5px;
@@ -1071,10 +1075,11 @@
             document.querySelectorAll('.card-slot').forEach(slot => {
                 const slotCard = slot.closest('.card');
                 if (slotCard === draggedCard) return; // Don't snap to own slots
-                
+                if (slotCard.dataset.flipped === 'true') return; // Ignore slots on face-down cards
+
                 const maxSize = parseInt(slot.dataset.maxSize);
                 if (draggedSize > maxSize) return; // Card too big for this slot
-                
+
                 const slotRect = slot.getBoundingClientRect();
                 if (isOverlapping(draggedRect, slotRect)) {
                     slot.classList.add('highlight');
@@ -1127,13 +1132,14 @@
             document.querySelectorAll('.card-slot').forEach(slot => {
                 const slotCard = slot.closest('.card');
                 if (slotCard === draggedCard) return; // Don't snap to own slots
-                
+                if (slotCard.dataset.flipped === 'true') return; // Ignore slots on face-down cards
+
                 const maxSize = parseInt(slot.dataset.maxSize);
                 if (draggedSize > maxSize) return; // Card too big for this slot
-                
+
                 const slotRect = slot.getBoundingClientRect();
                 const overlap = getOverlapArea(draggedRect, slotRect);
-                
+
                 if (overlap > bestOverlap) {
                     bestOverlap = overlap;
                     bestSlot = slot;
@@ -1298,8 +1304,8 @@
                     menuHTML += `<div class="menu-item" onclick="turnFaceDown('${card.id}')">Turn Face Down</div>`;
                 }
                 
-                // Show "Enter Edit Mode" if card has slots
-                if (hasSlots) {
+                // Show "Enter Edit Mode" if card has slots and is face up
+                if (hasSlots && !isFlipped) {
                     menuHTML += `<div class="menu-item" onclick="enterCardEditMode('${card.id}')">Enter Edit Mode</div>`;
                 }
             }
