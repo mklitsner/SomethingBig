@@ -868,9 +868,26 @@
                 // For rotated elements, we need to account for the center point offset
                 const centerOffsetX = (boundingWidth - originalWidth) / 2;
                 const centerOffsetY = (boundingHeight - originalHeight) / 2;
-                
-                newLeft = Math.max(-centerOffsetX, Math.min(newLeft, parentWidth - boundingWidth + centerOffsetX));
-                newBottom = Math.max(-centerOffsetY, Math.min(newBottom, parentHeight - boundingHeight + centerOffsetY));
+
+                let minLeft, maxLeft, minBottom, maxBottom;
+                if (centerOffsetX > 0) {
+                    minLeft = -centerOffsetX;
+                    maxLeft = parentWidth - boundingWidth + centerOffsetX;
+                } else {
+                    minLeft = 0;
+                    maxLeft = parentWidth - boundingWidth;
+                }
+
+                if (centerOffsetY > 0) {
+                    minBottom = -centerOffsetY;
+                    maxBottom = parentHeight - boundingHeight + centerOffsetY;
+                } else {
+                    minBottom = 0;
+                    maxBottom = parentHeight - boundingHeight;
+                }
+
+                newLeft = Math.max(minLeft, Math.min(newLeft, maxLeft));
+                newBottom = Math.max(minBottom, Math.min(newBottom, maxBottom));
                 
                 slot.style.left = newLeft + 'px';
                 slot.style.bottom = newBottom + 'px';
