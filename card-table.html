@@ -37,6 +37,45 @@
             z-index: 0;
         }
 
+        .zone-label {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+
+        .zone-options {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #333;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .zone:hover .zone-options {
+            display: flex;
+        }
+
+        .zone-options:hover {
+            background: rgba(255,255,255,1);
+            transform: scale(1.1);
+        }
+
         .card {
             position: absolute;
             border-radius: 8px;
@@ -1604,7 +1643,7 @@
             }, 300);
         }
 
-        function createZoneElement(id, left, top, width, height) {
+        function createZoneElement(id, left, top, width, height, size) {
             const zone = document.createElement('div');
             zone.className = 'zone';
             zone.id = id;
@@ -1612,10 +1651,25 @@
             zone.style.top = top || '100px';
             zone.style.width = width || '200px';
             zone.style.height = height || '200px';
+
+            const label = document.createElement('div');
+            label.className = 'zone-label';
+            zone.appendChild(label);
+
+            const optionsBtn = document.createElement('div');
+            optionsBtn.className = 'zone-options';
+            optionsBtn.innerHTML = '⋯';
+            optionsBtn.addEventListener('click', showZoneOptionsMenu);
+            const optionsMenu = document.createElement('div');
+            optionsMenu.className = 'options-menu';
+            optionsBtn.appendChild(optionsMenu);
+            zone.appendChild(optionsBtn);
+
             zone.addEventListener('mousedown', startZoneDrag);
             document.getElementById('table').appendChild(zone);
             zones.push(zone);
             zoneCards[id] = zoneCards[id] || [];
+            if (size) setZoneSize(id, size);
             return zone;
         }
 
@@ -1626,6 +1680,9 @@
         }
 
         function startZoneDrag(e) {
+            if (e.target.classList.contains('zone-options') || e.target.closest('.options-menu')) {
+                return;
+            }
             const zone = e.target.closest('.zone');
             if (!zone) return;
             const startX = e.clientX;
@@ -1682,14 +1739,59 @@
                 const rect = zone.getBoundingClientRect();
                 if (centerX > rect.left && centerX < rect.right &&
                     centerY > rect.top && centerY < rect.bottom) {
-                    if (!zoneCards[zone.id]) zoneCards[zone.id] = [];
-                    if (!zoneCards[zone.id].includes(card.id)) {
-                        zoneCards[zone.id].push(card.id);
+                    const allowed = zone.dataset.size;
+                    if (!allowed || allowed === card.dataset.size) {
+                        if (!zoneCards[zone.id]) zoneCards[zone.id] = [];
+                        if (!zoneCards[zone.id].includes(card.id)) {
+                            zoneCards[zone.id].push(card.id);
+                        }
+                        card.dataset.zone = zone.id;
+                        updateZoneStack(zone);
                     }
-                    card.dataset.zone = zone.id;
-                    updateZoneStack(zone);
                 }
             });
+        }
+
+        function updateZoneMenu(zone) {
+            if (!zone) return;
+            const menu = zone.querySelector('.options-menu');
+            if (!menu) return;
+            const sizes = ['tiny', 'small', 'big', 'huge', 'giant'];
+            menu.innerHTML = sizes.map(s => {
+                const name = s.charAt(0).toUpperCase() + s.slice(1);
+                return `<div class="menu-item" onclick="setZoneSize('${zone.id}', '${s}')">${name}</div>`;
+            }).join('');
+        }
+
+        function showZoneOptionsMenu(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            hideAllMenus();
+            const zone = e.target.closest('.zone');
+            updateZoneMenu(zone);
+            const menu = e.target.querySelector('.options-menu');
+            if (menu) {
+                menu.classList.add('show');
+            }
+        }
+
+        function setZoneSize(zoneId, size) {
+            const zone = document.getElementById(zoneId);
+            if (!zone) return;
+            zone.dataset.size = size;
+            const label = zone.querySelector('.zone-label');
+            if (label) label.textContent = size.toUpperCase();
+            zone.style.width = getCardWidth(size) + 'px';
+            zone.style.height = getCardHeight(size) + 'px';
+            const ids = zoneCards[zoneId] || [];
+            ids.slice().forEach(id => {
+                const card = document.getElementById(id);
+                if (card && card.dataset.size !== size) {
+                    releaseFromZone(card);
+                }
+            });
+            updateZoneStack(zone);
+            hideAllMenus();
         }
 
         function getDistance(card1, card2) {
@@ -1753,7 +1855,7 @@
                     left: card.style.left,
                     top: card.style.top,
                     zIndex: card.style.zIndex,
-                    flipped: card.dataset.flipped,
+                    faceDown: card.dataset.flipped === 'true',
                     rotation: card.style.transform,
                     zone: card.dataset.zone || null
                 });
@@ -1764,7 +1866,8 @@
                     left: zone.style.left,
                     top: zone.style.top,
                     width: zone.style.width,
-                    height: zone.style.height
+                    height: zone.style.height,
+                    size: zone.dataset.size || null
                 });
             });
             localStorage.setItem('cardTableSetup', JSON.stringify(state));
@@ -1780,7 +1883,7 @@
             }
             const data = JSON.parse(saved);
             data.zones.forEach(z => {
-                createZoneElement(z.id, z.left, z.top, z.width, z.height);
+                createZoneElement(z.id, z.left, z.top, z.width, z.height, z.size);
                 const num = parseInt(z.id.split('-')[1]);
                 if (!isNaN(num)) zoneCounter = Math.max(zoneCounter, num);
             });
@@ -1790,12 +1893,17 @@
                 card.style.left = c.left;
                 card.style.top = c.top;
                 card.style.zIndex = c.zIndex;
-                card.dataset.flipped = c.flipped;
                 if (c.rotation) card.style.transform = c.rotation;
+                if (c.faceDown || c.flipped === 'true') {
+                    turnFaceDown(c.id);
+                }
                 if (c.zone) {
-                    if (!zoneCards[c.zone]) zoneCards[c.zone] = [];
-                    zoneCards[c.zone].push(c.id);
-                    card.dataset.zone = c.zone;
+                    const zone = document.getElementById(c.zone);
+                    if (zone && (!zone.dataset.size || zone.dataset.size === c.size)) {
+                        if (!zoneCards[c.zone]) zoneCards[c.zone] = [];
+                        zoneCards[c.zone].push(c.id);
+                        card.dataset.zone = c.zone;
+                    }
                 }
                 const num = parseInt(c.id.split('-')[1]);
                 if (!isNaN(num)) cardCounter = Math.max(cardCounter, num);
@@ -1834,7 +1942,9 @@
         });
 
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.card-options') && !e.target.closest('.options-menu')) {
+            if (!e.target.closest('.card-options') &&
+                !e.target.closest('.zone-options') &&
+                !e.target.closest('.options-menu')) {
                 hideAllMenus();
             }
         });
