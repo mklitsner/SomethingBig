@@ -1171,7 +1171,7 @@
       function getSlotDimensions(size) {
         const dimensions = {
           tiny: { width: 80, height: 116 },
-          small: { width: 116, height: 170 },
+          small: { width: 170, height: 116 },
           big: { width: 170, height: 242 },
           huge: { width: 242, height: 350 },
           giant: { width: 350, height: 494 },
@@ -1260,14 +1260,14 @@
       }
 
       function getCardWidth(size) {
-        const sizes = { tiny: 90, small: 126, big: 180, huge: 252, giant: 360 };
+        const sizes = { tiny: 90, small: 180, big: 180, huge: 252, giant: 360 };
         return sizes[size] || 90;
       }
 
       function getCardHeight(size) {
         const sizes = {
           tiny: 126,
-          small: 180,
+          small: 126,
           big: 252,
           huge: 360,
           giant: 504,
