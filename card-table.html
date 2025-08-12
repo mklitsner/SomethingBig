@@ -1070,15 +1070,16 @@
             
             const draggedSize = getSizeIndex(draggedCard.dataset.size);
             const draggedRect = draggedCard.getBoundingClientRect();
-            
+
             // Check all slots on the table
             document.querySelectorAll('.card-slot').forEach(slot => {
                 const slotCard = slot.closest('.card');
                 if (slotCard === draggedCard) return; // Don't snap to own slots
                 if (slotCard.dataset.flipped === 'true') return; // Ignore slots on face-down cards
 
-                const maxSize = parseInt(slot.dataset.maxSize);
-                if (draggedSize > maxSize) return; // Card too big for this slot
+                // Only highlight slots that match the dragged card's size
+                const slotSize = getSizeIndex(slot.dataset.slotSize);
+                if (draggedSize !== slotSize) return; // Sizes must match exactly
 
                 const slotRect = slot.getBoundingClientRect();
                 if (isOverlapping(draggedRect, slotRect)) {
@@ -1127,15 +1128,16 @@
             const draggedRect = draggedCard.getBoundingClientRect();
             let bestSlot = null;
             let bestOverlap = 0;
-            
+
             // Find the best overlapping slot
             document.querySelectorAll('.card-slot').forEach(slot => {
                 const slotCard = slot.closest('.card');
                 if (slotCard === draggedCard) return; // Don't snap to own slots
                 if (slotCard.dataset.flipped === 'true') return; // Ignore slots on face-down cards
 
-                const maxSize = parseInt(slot.dataset.maxSize);
-                if (draggedSize > maxSize) return; // Card too big for this slot
+                // Only consider slots that match the dragged card's size
+                const slotSize = getSizeIndex(slot.dataset.slotSize);
+                if (draggedSize !== slotSize) return; // Sizes must match exactly
 
                 const slotRect = slot.getBoundingClientRect();
                 const overlap = getOverlapArea(draggedRect, slotRect);
@@ -1145,7 +1147,7 @@
                     bestSlot = slot;
                 }
             });
-            
+
             // Snap to the best slot if overlap is significant
             if (bestSlot && bestOverlap > 1000) { // Minimum overlap threshold
                 snapToSlot(draggedCard, bestSlot);
