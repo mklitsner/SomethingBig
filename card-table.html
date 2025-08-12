@@ -67,7 +67,8 @@
             font-weight: bold;
         }
 
-        .zone:hover .zone-options {
+        /* Show zone options only while in board edit mode */
+        .board-edit-mode .zone:hover .zone-options {
             display: flex;
         }
 
@@ -195,13 +196,36 @@
             font-weight: bold;
         }
 
+        .exhibit-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 2px 5px;
+            font-size: 10px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+        }
+
+        .card.back .exhibit-btn {
+            display: block;
+        }
+
+        .board-edit-mode .exhibit-btn {
+            display: none !important;
+        }
+
         .card.back .card-options {
             background: rgba(255,255,255,0.95);
             border: 2px solid #333;
             box-shadow: 0 2px 8px rgba(255,255,255,0.3);
         }
 
-        .card:hover .card-options {
+        /* Show card options only while in board edit mode */
+        .board-edit-mode .card:hover .card-options {
             display: flex;
         }
 
@@ -253,10 +277,13 @@
             position: fixed;
             top: 20px;
             right: 20px;
+            z-index: 100;
+        }
+
+        .board-edit-mode #controls {
             background: rgba(255,255,255,0.9);
             padding: 15px;
             border-radius: 10px;
-            z-index: 100;
         }
 
         .zoom-controls {
@@ -641,11 +668,14 @@
         <!-- Cards will be added here -->
     </div>
 
-    <div class="controls">
-        <button class="btn" onclick="showAddCardModal()">Add Card</button>
-        <button class="btn" onclick="addZone()">Add Zone</button>
-        <button class="btn" onclick="saveSetup()">Save Setup</button>
-        <button class="btn" onclick="clearTable()">Clear Table</button>
+    <div class="controls" id="controls">
+        <button class="btn" id="editModeBtn" onclick="toggleBoardEditMode()">Enter Edit Mode</button>
+        <div id="editControls" style="display: none;">
+            <button class="btn" onclick="showAddCardModal()">Add Card</button>
+            <button class="btn" onclick="addZone()">Add Zone</button>
+            <button class="btn" onclick="saveSetup()">Save Setup</button>
+            <button class="btn" onclick="clearTable()">Clear Table</button>
+        </div>
     </div>
 
     <!-- Zoom Controls -->
@@ -722,6 +752,44 @@
         let zoneCounter = 0;
         let zones = [];
         let zoneCards = {};
+        let boardEditMode = false;
+
+        function toggleBoardEditMode() {
+            if (boardEditMode) {
+                exitBoardEditMode();
+            } else {
+                enterBoardEditMode();
+            }
+        }
+
+        function enterBoardEditMode() {
+            boardEditMode = true;
+            document.body.classList.add('board-edit-mode');
+            const editControls = document.getElementById('editControls');
+            if (editControls) editControls.style.display = 'block';
+            const btn = document.getElementById('editModeBtn');
+            if (btn) btn.textContent = 'Exit Edit Mode';
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.add('edit-mode');
+                updateCardMenu(card);
+            });
+        }
+
+        function exitBoardEditMode() {
+            boardEditMode = false;
+            document.body.classList.remove('board-edit-mode');
+            const editControls = document.getElementById('editControls');
+            if (editControls) editControls.style.display = 'none';
+            const btn = document.getElementById('editModeBtn');
+            if (btn) btn.textContent = 'Enter Edit Mode';
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('edit-mode');
+                card.querySelectorAll('.slot-edit-controls').forEach(ctrl => ctrl.classList.remove('show'));
+                card.querySelectorAll('.card-slot').forEach(slot => slot.classList.remove('edit-mode'));
+                updateCardMenu(card);
+            });
+            hideAllMenus();
+        }
 
         function bringCardToFront(card) {
             const cards = document.querySelectorAll('.card');
@@ -803,13 +871,20 @@
             optionsBtn.className = 'card-options';
             optionsBtn.innerHTML = '⋯';
             optionsBtn.addEventListener('click', showOptionsMenu);
-            
+
             // Create options menu
             const optionsMenu = document.createElement('div');
             optionsMenu.className = 'options-menu';
             optionsBtn.appendChild(optionsMenu);
-            
+
             card.appendChild(optionsBtn);
+
+            // Exhibit button for face-down cards in view mode
+            const exhibitBtn = document.createElement('div');
+            exhibitBtn.className = 'exhibit-btn';
+            exhibitBtn.textContent = 'Exhibit';
+            exhibitBtn.addEventListener('click', () => exhibitCard(card.id));
+            card.appendChild(exhibitBtn);
             
             // Add event listeners
             card.addEventListener('mousedown', startDrag);
@@ -822,6 +897,11 @@
                 createCardSlots(card, slots);
             }
             
+            // Ensure new cards respect current board edit mode
+            if (boardEditMode) {
+                card.classList.add('edit-mode');
+            }
+
             // Update the menu content based on card state
             updateCardMenu(card);
         }
@@ -894,6 +974,7 @@
                 <span class="slot-control size-option" data-size="huge" onclick="changeSlotSize(this, 'huge')">Huge</span>
                 <span class="slot-control size-option" data-size="giant" onclick="changeSlotSize(this, 'giant')">Giant</span>
                 <span class="slot-control" onclick="rotateSlot90(this)">↻ 90°</span>
+                <span class="slot-control" onclick="deleteSlot(this)">🗑</span>
                 <span class="slot-control" onclick="finishSlotEdit(this)">✓</span>
             `;
             
@@ -1035,6 +1116,30 @@
             }
         }
 
+        function deleteSlot(element) {
+            const slot = element.closest('.card-slot');
+            if (!slot) return;
+            const card = slot.closest('.card');
+            slot.remove();
+            if (card) {
+                updateCardSlotData(card);
+                updateCardMenu(card);
+            }
+        }
+
+        function updateCardSlotData(card) {
+            const types = Array.from(card.querySelectorAll('.card-slot')).map(s => s.dataset.slotType);
+            if (types.includes('haven') && types.includes('prey')) {
+                card.dataset.slots = 'both';
+            } else if (types.includes('haven')) {
+                card.dataset.slots = 'haven';
+            } else if (types.includes('prey')) {
+                card.dataset.slots = 'prey';
+            } else {
+                card.dataset.slots = '';
+            }
+        }
+
         function toggleSlotEditMode(slot) {
             if (!slot) return;
             
@@ -1065,70 +1170,6 @@
                     });
                 }
             }
-        }
-
-
-
-        function enterCardEditMode(cardId) {
-            const card = document.getElementById(cardId);
-            if (!card) {
-                console.error('Card not found:', cardId);
-                return;
-            }
-            
-            // Exit edit mode on all other cards first
-            document.querySelectorAll('.card.edit-mode').forEach(c => {
-                if (c && c !== card) {
-                    c.classList.remove('edit-mode');
-                    const controls = c.querySelectorAll('.slot-edit-controls');
-                    if (controls) {
-                        controls.forEach(ctrl => {
-                            if (ctrl) ctrl.classList.remove('show');
-                        });
-                    }
-                    const slots = c.querySelectorAll('.card-slot');
-                    if (slots) {
-                        slots.forEach(slot => {
-                            if (slot) slot.classList.remove('edit-mode');
-                        });
-                    }
-                }
-            });
-            
-            // Enter edit mode for this card
-            card.classList.add('edit-mode');
-            
-            // Update menu safely
-            try {
-                updateCardMenu(card);
-            } catch (error) {
-                console.error('Error updating card menu:', error);
-            }
-            
-            hideAllMenus();
-        }
-
-        function exitCardEditMode(cardId) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            
-            card.classList.remove('edit-mode');
-            
-            // Safely exit all slot edit modes
-            card.querySelectorAll('.slot-edit-controls').forEach(ctrl => {
-                if (ctrl) {
-                    ctrl.classList.remove('show');
-                }
-            });
-            
-            card.querySelectorAll('.card-slot').forEach(slot => {
-                if (slot) {
-                    slot.classList.remove('edit-mode');
-                }
-            });
-            
-            updateCardMenu(card);
-            hideAllMenus();
         }
 
         function getCardWidth(size) {
@@ -1373,40 +1414,76 @@
             if (!optionsMenu) return; // Exit safely if no options menu found
             
             const isFlipped = card.dataset.flipped === 'true';
-            const isEditMode = card.classList.contains('edit-mode');
-            const hasSlots = card.querySelectorAll('.card-slot').length > 0;
-            
+
             let menuHTML = '';
-            
-            if (isEditMode) {
-                // In edit mode - only show exit option
-                menuHTML += `<div class="menu-item" onclick="exitCardEditMode('${card.id}')">Exit Edit Mode</div>`;
-            } else {
-                // Normal mode options
-                
-                // Only show "Exhibit" option if card is face down (flipped)
+
+            if (boardEditMode) {
+                menuHTML += `<div class="menu-item" onclick="addSlotToCard('${card.id}', 'haven')">Add Haven Slot</div>`;
+                menuHTML += `<div class="menu-item" onclick="addSlotToCard('${card.id}', 'prey')">Add Prey Slot</div>`;
+                menuHTML += `<div class="menu-item" onclick="changeCardAge('${card.id}')">Change Age</div>`;
+                menuHTML += `<div class="menu-item" onclick="changeCardPoints('${card.id}')">Change Points</div>`;
                 if (isFlipped) {
-                    menuHTML += `<div class="menu-item" onclick="exhibitCard('${card.id}')">Exhibit</div>`;
-                }
-                
-                // Show "Turn Face Down" option if card is face up (not flipped)
-                if (!isFlipped) {
+                    menuHTML += `<div class="menu-item" onclick="exhibitCard('${card.id}')">Turn Face Up</div>`;
+                } else {
                     menuHTML += `<div class="menu-item" onclick="turnFaceDown('${card.id}')">Turn Face Down</div>`;
                 }
-                
-                // Show "Enter Edit Mode" if card has slots and is face up
-                if (hasSlots && !isFlipped) {
-                    menuHTML += `<div class="menu-item" onclick="enterCardEditMode('${card.id}')">Enter Edit Mode</div>`;
-                }
+                menuHTML += `<div class="menu-item" onclick="deleteCard('${card.id}')">Delete</div>`;
             }
-            
-            // Always show delete option
-            menuHTML += `<div class="menu-item" onclick="deleteCard('${card.id}')">Delete</div>`;
-            
+
             optionsMenu.innerHTML = menuHTML;
         }
 
+        function addSlotToCard(cardId, type) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            if (card.dataset.size === 'tiny') return;
+            const slot = createSlot(type, 80, 116, 10, 10, card);
+            card.appendChild(slot);
+            updateCardSlotData(card);
+            updateCardMenu(card);
+        }
+
+        function changeCardAge(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            const age = prompt('Enter age (invertebrates, dinosaurs, mammals) or leave blank:');
+            card.dataset.age = age || '';
+            let display = card.querySelector('.card-age');
+            if (age) {
+                const ageEmojis = { invertebrates: '🐚', dinosaurs: '🦖', mammals: '🦣' };
+                if (!display) {
+                    display = document.createElement('div');
+                    display.className = 'card-age';
+                    card.appendChild(display);
+                }
+                display.textContent = ageEmojis[age] || '';
+            } else if (display) {
+                display.remove();
+            }
+            updateCardMenu(card);
+        }
+
+        function changeCardPoints(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            const points = prompt('Enter points (blank to remove):');
+            card.dataset.points = points || '';
+            let display = card.querySelector('.card-points');
+            if (points) {
+                if (!display) {
+                    display = document.createElement('div');
+                    display.className = 'card-points';
+                    card.appendChild(display);
+                }
+                display.textContent = points;
+            } else if (display) {
+                display.remove();
+            }
+            updateCardMenu(card);
+        }
+
         function showOptionsMenu(e) {
+            if (!boardEditMode) return;
             e.stopPropagation();
             e.preventDefault();
             
@@ -1438,6 +1515,7 @@
                 card.dataset.flipped = 'false';
             }
             
+            updateCardMenu(card);
             // Hide menu
             hideAllMenus();
         }
@@ -1456,6 +1534,7 @@
                 card.dataset.flipped = 'true';
             }
             
+            updateCardMenu(card);
             // Hide menu
             hideAllMenus();
         }
@@ -1485,8 +1564,9 @@
         }
 
         function startDrag(e) {
-            // Don't start drag if clicking on options button or menu
-            if (e.target.classList.contains('card-options') || 
+            // Don't start drag if clicking on options button, exhibit button, or menu
+            if (e.target.classList.contains('card-options') ||
+                e.target.classList.contains('exhibit-btn') ||
                 e.target.classList.contains('menu-item') ||
                 e.target.closest('.options-menu')) {
                 return;
@@ -1495,8 +1575,8 @@
             const card = e.target.closest('.card');
             if (!card) return;
             
-            // Don't allow dragging if card is in edit mode
-            if (card.classList.contains('edit-mode')) {
+            // Don't allow dragging if a slot on this card is being edited
+            if (card.querySelector('.card-slot.edit-mode')) {
                 return;
             }
             
@@ -1760,7 +1840,7 @@
             menu.innerHTML = sizes.map(s => {
                 const name = s.charAt(0).toUpperCase() + s.slice(1);
                 return `<div class="menu-item" onclick="setZoneSize('${zone.id}', '${s}')">${name}</div>`;
-            }).join('');
+            }).join('') + `<div class="menu-item" onclick="deleteZone('${zone.id}')">Delete Zone</div>`;
         }
 
         function showZoneOptionsMenu(e) {
@@ -1791,6 +1871,20 @@
                 }
             });
             updateZoneStack(zone);
+            hideAllMenus();
+        }
+
+        function deleteZone(zoneId) {
+            const zone = document.getElementById(zoneId);
+            if (!zone) return;
+            const ids = zoneCards[zoneId] || [];
+            ids.forEach(id => {
+                const card = document.getElementById(id);
+                if (card) delete card.dataset.zone;
+            });
+            delete zoneCards[zoneId];
+            zones = zones.filter(z => z.id !== zoneId);
+            zone.remove();
             hideAllMenus();
         }
 
