@@ -120,8 +120,8 @@
       }
 
       .card.small {
-        width: 180px;
-        height: 126px;
+        width: 116px;
+        height: 170px;
       }
 
       .card.big {
@@ -893,6 +893,8 @@
         card.dataset.points = points || "";
         card.dataset.age = age || "";
         card.dataset.slots = slots || "";
+        card.dataset.rotation = "0";
+        card.style.transform = "rotate(0deg)";
 
         // Create card text content
         const cardText = document.createElement("div");
@@ -1171,7 +1173,7 @@
       function getSlotDimensions(size) {
         const dimensions = {
           tiny: { width: 80, height: 116 },
-          small: { width: 170, height: 116 },
+          small: { width: 116, height: 170 },
           big: { width: 170, height: 242 },
           huge: { width: 242, height: 350 },
           giant: { width: 350, height: 494 },
@@ -1260,14 +1262,14 @@
       }
 
       function getCardWidth(size) {
-        const sizes = { tiny: 90, small: 180, big: 180, huge: 252, giant: 360 };
+        const sizes = { tiny: 90, small: 116, big: 180, huge: 252, giant: 360 };
         return sizes[size] || 90;
       }
 
       function getCardHeight(size) {
         const sizes = {
           tiny: 126,
-          small: 126,
+          small: 170,
           big: 252,
           huge: 360,
           giant: 504,
