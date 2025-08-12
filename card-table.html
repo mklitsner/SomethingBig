@@ -24,6 +24,19 @@
             transition: transform 0.3s ease;
         }
 
+        .zone {
+            position: absolute;
+            border: 2px dashed rgba(255,255,255,0.7);
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            width: 200px;
+            height: 200px;
+            cursor: move;
+            resize: both;
+            overflow: auto;
+            z-index: 0;
+        }
+
         .card {
             position: absolute;
             border-radius: 8px;
@@ -591,6 +604,8 @@
 
     <div class="controls">
         <button class="btn" onclick="showAddCardModal()">Add Card</button>
+        <button class="btn" onclick="addZone()">Add Zone</button>
+        <button class="btn" onclick="saveSetup()">Save Setup</button>
         <button class="btn" onclick="clearTable()">Clear Table</button>
     </div>
 
@@ -665,6 +680,9 @@
         let stacks = [];
         let currentZoom = 1.0;
         let slotRelationships = {}; // Track which cards are in which slots
+        let zoneCounter = 0;
+        let zones = [];
+        let zoneCards = {};
 
         function bringCardToFront(card) {
             const cards = document.querySelectorAll('.card');
@@ -688,13 +706,23 @@
             });
         }
 
-        function addCard(size, points = null, age = null, slots = null) {
-            cardCounter++;
+        function addCard(size, points = null, age = null, slots = null, customId = null) {
             const table = document.getElementById('table');
             const card = document.createElement('div');
-            
+
             card.className = `card ${size} front`;
-            card.id = `card-${cardCounter}`;
+            let newId;
+            if (customId) {
+                newId = customId;
+                const num = parseInt(customId.split('-')[1]);
+                if (!isNaN(num)) {
+                    cardCounter = Math.max(cardCounter, num);
+                }
+            } else {
+                cardCounter++;
+                newId = `card-${cardCounter}`;
+            }
+            card.id = newId;
             card.style.left = Math.random() * (table.clientWidth - 200) + 'px';
             card.style.top = Math.random() * (table.clientHeight - 200) + 'px';
             card.style.zIndex = cardCounter;
@@ -1450,6 +1478,7 @@
                 draggedCard = card;
                 draggedCard.classList.add('dragging');
                 bringCardToFront(draggedCard);
+                releaseFromZone(draggedCard);
             }, dragDelay);
 
             function drag(e) {
@@ -1461,6 +1490,7 @@
                     draggedCard = card;
                     draggedCard.classList.add('dragging');
                     bringCardToFront(draggedCard);
+                    releaseFromZone(draggedCard);
                 }
                 
                 if (!isDragging || !draggedCard) return;
@@ -1501,6 +1531,7 @@
                 if (draggedCard) {
                     draggedCard.classList.remove('dragging');
                     checkForSlotSnap();
+                    checkForZoneSnap(draggedCard);
                     hideSlotHighlights();
                     draggedCard = null;
                 }
@@ -1573,6 +1604,94 @@
             }, 300);
         }
 
+        function createZoneElement(id, left, top, width, height) {
+            const zone = document.createElement('div');
+            zone.className = 'zone';
+            zone.id = id;
+            zone.style.left = left || '100px';
+            zone.style.top = top || '100px';
+            zone.style.width = width || '200px';
+            zone.style.height = height || '200px';
+            zone.addEventListener('mousedown', startZoneDrag);
+            document.getElementById('table').appendChild(zone);
+            zones.push(zone);
+            zoneCards[id] = zoneCards[id] || [];
+            return zone;
+        }
+
+        function addZone() {
+            zoneCounter++;
+            const id = `zone-${zoneCounter}`;
+            createZoneElement(id);
+        }
+
+        function startZoneDrag(e) {
+            const zone = e.target.closest('.zone');
+            if (!zone) return;
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startLeft = parseFloat(zone.style.left) || 0;
+            const startTop = parseFloat(zone.style.top) || 0;
+
+            function drag(ev) {
+                const dx = (ev.clientX - startX) / currentZoom;
+                const dy = (ev.clientY - startY) / currentZoom;
+                zone.style.left = startLeft + dx + 'px';
+                zone.style.top = startTop + dy + 'px';
+                updateZoneStack(zone);
+            }
+
+            function stop() {
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', stop);
+            }
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stop);
+        }
+
+        function updateZoneStack(zone) {
+            const ids = zoneCards[zone.id] || [];
+            const left = parseFloat(zone.style.left) || 0;
+            const top = parseFloat(zone.style.top) || 0;
+            ids.forEach((id, index) => {
+                const card = document.getElementById(id);
+                if (card) {
+                    card.style.left = left + 10 + index * 5 + 'px';
+                    card.style.top = top + 10 + index * 5 + 'px';
+                    card.style.zIndex = 1000 + index;
+                }
+            });
+        }
+
+        function releaseFromZone(card) {
+            const zoneId = card.dataset.zone;
+            if (zoneId && zoneCards[zoneId]) {
+                zoneCards[zoneId] = zoneCards[zoneId].filter(id => id !== card.id);
+                delete card.dataset.zone;
+                const zone = document.getElementById(zoneId);
+                if (zone) updateZoneStack(zone);
+            }
+        }
+
+        function checkForZoneSnap(card) {
+            const cardRect = card.getBoundingClientRect();
+            const centerX = cardRect.left + cardRect.width / 2;
+            const centerY = cardRect.top + cardRect.height / 2;
+            zones.forEach(zone => {
+                const rect = zone.getBoundingClientRect();
+                if (centerX > rect.left && centerX < rect.right &&
+                    centerY > rect.top && centerY < rect.bottom) {
+                    if (!zoneCards[zone.id]) zoneCards[zone.id] = [];
+                    if (!zoneCards[zone.id].includes(card.id)) {
+                        zoneCards[zone.id].push(card.id);
+                    }
+                    card.dataset.zone = zone.id;
+                    updateZoneStack(zone);
+                }
+            });
+        }
+
         function getDistance(card1, card2) {
             const rect1 = card1.getBoundingClientRect();
             const rect2 = card2.getBoundingClientRect();
@@ -1612,9 +1731,79 @@
             const table = document.getElementById('table');
             const cards = table.querySelectorAll('.card');
             cards.forEach(card => card.remove());
+            const zoneElems = table.querySelectorAll('.zone');
+            zoneElems.forEach(z => z.remove());
             cardCounter = 0;
+            zoneCounter = 0;
             stacks = [];
             slotRelationships = {}; // Clear all slot relationships
+            zones = [];
+            zoneCards = {};
+        }
+
+        function saveSetup() {
+            const state = { cards: [], zones: [] };
+            document.querySelectorAll('.card').forEach(card => {
+                state.cards.push({
+                    id: card.id,
+                    size: card.dataset.size,
+                    points: card.dataset.points,
+                    age: card.dataset.age,
+                    slots: card.dataset.slots,
+                    left: card.style.left,
+                    top: card.style.top,
+                    zIndex: card.style.zIndex,
+                    flipped: card.dataset.flipped,
+                    rotation: card.style.transform,
+                    zone: card.dataset.zone || null
+                });
+            });
+            zones.forEach(zone => {
+                state.zones.push({
+                    id: zone.id,
+                    left: zone.style.left,
+                    top: zone.style.top,
+                    width: zone.style.width,
+                    height: zone.style.height
+                });
+            });
+            localStorage.setItem('cardTableSetup', JSON.stringify(state));
+        }
+
+        function loadSetup() {
+            const saved = localStorage.getItem('cardTableSetup');
+            if (!saved) {
+                addCard('tiny', 3, 'invertebrates');
+                addCard('big', null, 'dinosaurs', 'haven');
+                addCard('huge', 7, 'mammals', 'both');
+                return;
+            }
+            const data = JSON.parse(saved);
+            data.zones.forEach(z => {
+                createZoneElement(z.id, z.left, z.top, z.width, z.height);
+                const num = parseInt(z.id.split('-')[1]);
+                if (!isNaN(num)) zoneCounter = Math.max(zoneCounter, num);
+            });
+            data.cards.forEach(c => {
+                addCard(c.size, c.points || null, c.age || null, c.slots || null, c.id);
+                const card = document.getElementById(c.id);
+                card.style.left = c.left;
+                card.style.top = c.top;
+                card.style.zIndex = c.zIndex;
+                card.dataset.flipped = c.flipped;
+                if (c.rotation) card.style.transform = c.rotation;
+                if (c.zone) {
+                    if (!zoneCards[c.zone]) zoneCards[c.zone] = [];
+                    zoneCards[c.zone].push(c.id);
+                    card.dataset.zone = c.zone;
+                }
+                const num = parseInt(c.id.split('-')[1]);
+                if (!isNaN(num)) cardCounter = Math.max(cardCounter, num);
+            });
+            Object.keys(zoneCards).forEach(id => {
+                const zone = document.getElementById(id);
+                if (zone) updateZoneStack(zone);
+            });
         }
 
         // Modal interaction handlers
@@ -1670,10 +1859,7 @@
             updateZoom();
         }, { passive: false });
 
-        // Initialize with sample cards showing slots
-        addCard('tiny', 3, 'invertebrates');
-        addCard('big', null, 'dinosaurs', 'haven');
-        addCard('huge', 7, 'mammals', 'both');
+        loadSetup();
     </script>
 </body>
 </html>
