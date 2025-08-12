@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Table</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0f4c3a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .table {
+            width: 100vw;
+            height: 100vh;
+            background: #0f4c3a;
+            position: relative;
+            border-radius: 50px;
+            border: 10px solid #8B4513;
+            transform-origin: center center;
+            transition: transform 0.3s ease;
+        }
+
+        .card {
+            position: absolute;
+            border-radius: 8px;
+            cursor: move;
+            user-select: none;
+            transition: transform 0.2s ease;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #333;
+            border: 2px solid #333;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+        }
+
+        .card.dragging {
+            z-index: 1000;
+            transform: rotate(5deg) scale(1.1);
+        }
+
+        .card.tiny {
+            width: 90px;
+            height: 126px;
+        }
+
+        .card.small {
+            width: 126px;
+            height: 180px;
+        }
+
+        .card.big {
+            width: 180px;  /* 2.5 inches at 72 DPI */
+            height: 252px; /* 3.5 inches at 72 DPI */
+        }
+
+        .card.huge {
+            width: 252px;  /* 3.5 inches at 72 DPI */
+            height: 360px; /* 5 inches at 72 DPI */
+        }
+
+        .card.giant {
+            width: 360px;  /* 5 inches at 72 DPI */
+            height: 504px; /* 7 inches at 72 DPI */
+        }
+
+        .card.front {
+            background: white;
+        }
+
+        .card.back {
+            background: black;
+            color: white;
+        }
+
+        /* AGE SYMBOL - TOP LEFT */
+        .card-age {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            z-index: 5;
+        }
+
+        /* POINTS NUMBER - BELOW AGE SYMBOL */
+        .card-points {
+            position: absolute;
+            top: 28px;
+            left: 5px;
+            width: 18px;
+            height: 18px;
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            z-index: 5;
+        }
+
+        .card.back .card-age,
+        .card.back .card-points {
+            display: none;
+        }
+
+        .card-options {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #333;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+            transition: all 0.2s ease;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .card.back .card-options {
+            background: rgba(255,255,255,0.95);
+            border: 2px solid #333;
+            box-shadow: 0 2px 8px rgba(255,255,255,0.3);
+        }
+
+        .card:hover .card-options {
+            display: flex;
+        }
+
+        .card-options:hover {
+            background: rgba(255,255,255,1);
+            transform: scale(1.1);
+        }
+
+        .options-menu {
+            position: absolute;
+            top: 25px;
+            right: 0;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 5px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            padding: 0;
+            min-width: 100px;
+            z-index: 1001;
+            display: none;
+        }
+
+        .card.back .options-menu {
+            box-shadow: 0 4px 12px rgba(255,255,255,0.3), 0 2px 6px rgba(0,0,0,0.8);
+            border: 2px solid #666;
+        }
+
+        .options-menu.show {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s ease;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zoom-btn {
+            width: 35px;
+            height: 35px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover {
+            background: #1976D2;
+        }
+
+        .zoom-level {
+            font-size: 12px;
+            color: #333;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .btn {
+            margin: 5px;
+            padding: 10px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #45a049;
+        }
+
+        .add-card-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .add-card-modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .size-options {
+            margin: 20px 0;
+        }
+
+        .size-btn {
+            margin: 5px;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .size-btn:hover {
+            background: #e0e0e0;
+            border-color: #bbb;
+        }
+
+        .size-btn.selected {
+            background: #4CAF50;
+            color: white;
+            border-color: #45a049;
+        }
+
+        .points-options {
+            margin: 20px 0;
+        }
+
+        .points-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .points-btn {
+            padding: 8px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+        }
+
+        .points-btn:hover {
+            background: #e0e0e0;
+            border-color: #bbb;
+        }
+
+        .points-btn.selected {
+            background: #2196F3;
+            color: white;
+            border-color: #1976D2;
+        }
+
+        .age-options {
+            margin: 20px 0;
+        }
+
+        .age-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .age-btn {
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .age-btn:hover {
+            background: #e0e0e0;
+            border-color: #bbb;
+        }
+
+        .age-btn.selected {
+            background: #FF9800;
+            color: white;
+            border-color: #F57C00;
+        }
+
+        .modal-buttons {
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            margin: 0 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .modal-btn.create {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .modal-btn.create:hover {
+            background: #45a049;
+        }
+
+        .modal-btn.cancel {
+            background: #f44336;
+            color: white;
+        }
+
+        .card-slot {
+            position: absolute;
+            border: 3px dashed;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            pointer-events: none;
+            z-index: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .card-slot.haven {
+            border-color: #FFD700;
+            background: rgba(255,215,0,0.1);
+        }
+
+        .card-slot.prey {
+            border-color: #FF4444;
+            background: rgba(255,68,68,0.1);
+        }
+
+        .card-slot.highlight {
+            background: rgba(76,175,80,0.3);
+            border-width: 4px;
+        }
+
+        .card-slot.edit-mode {
+            pointer-events: auto;
+            border-width: 4px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .card.edit-mode {
+            border: 3px solid #2196F3;
+            background: rgba(33, 150, 243, 0.05);
+            cursor: default;
+        }
+
+        .card.edit-mode .card-slot {
+            pointer-events: auto;
+            border-width: 4px;
+        }
+
+        .slot-edit-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 16px;
+            height: 16px;
+            background: #2196F3;
+            color: white;
+            border: 1px solid #1976D2;
+            border-radius: 50%;
+            font-size: 10px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .card.edit-mode .slot-edit-btn {
+            display: flex;
+        }
+
+        .slot-edit-controls {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px;
+            display: none;
+            gap: 5px;
+            align-items: center;
+            z-index: 1000;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .slot-edit-controls.show {
+            display: flex;
+        }
+
+        .slot-control {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .slot-control:hover {
+            background: #e0e0e0;
+        }
+
+        .slot-control:active {
+            background: #d0d0d0;
+        }
+
+        .resize-handles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #2196F3;
+            border: 1px solid #1976D2;
+            border-radius: 2px;
+            pointer-events: auto;
+            cursor: nw-resize;
+        }
+
+        .resize-handle.se {
+            bottom: -4px;
+            right: -4px;
+            cursor: se-resize;
+        }
+
+        .resize-handle.sw {
+            bottom: -4px;
+            left: -4px;
+            cursor: sw-resize;
+        }
+
+        .resize-handle.ne {
+            top: -4px;
+            right: -4px;
+            cursor: ne-resize;
+        }
+
+        .resize-handle.nw {
+            top: -4px;
+            left: -4px;
+            cursor: nw-resize;
+        }
+
+        .slot-options {
+            margin: 20px 0;
+        }
+
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .slot-btn {
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .slot-btn:hover {
+            background: #e0e0e0;
+            border-color: #bbb;
+        }
+
+        .slot-btn.selected {
+            background: #9C27B0;
+            color: white;
+            border-color: #7B1FA2;
+        }
+    </style>
+</head>
+<body>
+    <div class="table" id="table">
+        <!-- Cards will be added here -->
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="showAddCardModal()">Add Card</button>
+        <button class="btn" onclick="clearTable()">Clear Table</button>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+        <div class="zoom-level" id="zoomLevel">100%</div>
+        <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
+        <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom" style="font-size: 14px;">⌂</button>
+    </div>
+
+    <!-- Add Card Modal -->
+    <div class="add-card-modal" id="addCardModal">
+        <div class="modal-content">
+            <h3>Add New Card</h3>
+            
+            <div class="size-options">
+                <label><strong>Card Size:</strong></label>
+                <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    <div class="size-btn selected" data-size="tiny">Tiny</div>
+                    <div class="size-btn" data-size="small">Small</div>
+                    <div class="size-btn" data-size="big">Big</div>
+                    <div class="size-btn" data-size="huge">Huge</div>
+                    <div class="size-btn" data-size="giant">Giant</div>
+                </div>
+            </div>
+            
+            <div class="points-options">
+                <label><strong>Points (optional):</strong></label>
+                <div class="points-grid">
+                    <div class="points-btn selected" data-points="">None</div>
+                    <div class="points-btn" data-points="1">1</div>
+                    <div class="points-btn" data-points="2">2</div>
+                    <div class="points-btn" data-points="3">3</div>
+                    <div class="points-btn" data-points="4">4</div>
+                    <div class="points-btn" data-points="5">5</div>
+                    <div class="points-btn" data-points="6">6</div>
+                    <div class="points-btn" data-points="7">7</div>
+                </div>
+            </div>
+            
+            <div class="age-options">
+                <label><strong>Age (optional):</strong></label>
+                <div class="age-grid">
+                    <div class="age-btn selected" data-age="">None</div>
+                    <div class="age-btn" data-age="invertebrates">🐚 Invertebrates</div>
+                    <div class="age-btn" data-age="dinosaurs">🦖 Dinosaurs</div>
+                    <div class="age-btn" data-age="mammals">🦣 Mammals</div>
+                </div>
+            </div>
+            
+            <div class="slot-options">
+                <label><strong>Card Slots (for Small+ cards):</strong></label>
+                <div class="slot-grid">
+                    <div class="slot-btn selected" data-slots="none">None</div>
+                    <div class="slot-btn" data-slots="haven">Haven</div>
+                    <div class="slot-btn" data-slots="prey">Prey</div>
+                    <div class="slot-btn" data-slots="both">Both</div>
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="modal-btn create" onclick="createCardFromModal()">Create Card</button>
+                <button class="modal-btn cancel" onclick="hideAddCardModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cardCounter = 0;
+        let draggedCard = null;
+        let stacks = [];
+        let currentZoom = 1.0;
+        let slotRelationships = {}; // Track which cards are in which slots
+
+        function addCard(size, points = null, age = null, slots = null) {
+            cardCounter++;
+            const table = document.getElementById('table');
+            const card = document.createElement('div');
+            
+            card.className = `card ${size} front`;
+            card.id = `card-${cardCounter}`;
+            card.style.left = Math.random() * (table.clientWidth - 200) + 'px';
+            card.style.top = Math.random() * (table.clientHeight - 200) + 'px';
+            card.style.zIndex = cardCounter;
+            card.dataset.size = size;
+            card.dataset.flipped = 'false';
+            card.dataset.points = points || '';
+            card.dataset.age = age || '';
+            card.dataset.slots = slots || '';
+            
+            // Create card text content
+            const cardText = document.createElement('div');
+            cardText.className = 'card-text';
+            cardText.textContent = `${size.toUpperCase()} ${cardCounter}`;
+            card.appendChild(cardText);
+            
+            // Create age display if age is specified (TOP LEFT)
+            if (age) {
+                const ageDisplay = document.createElement('div');
+                ageDisplay.className = 'card-age';
+                const ageEmojis = {
+                    'invertebrates': '🐚',
+                    'dinosaurs': '🦖',
+                    'mammals': '🦣'
+                };
+                ageDisplay.textContent = ageEmojis[age];
+                card.appendChild(ageDisplay);
+            }
+            
+            // Create points display if points are specified (BELOW AGE)
+            if (points) {
+                const pointsDisplay = document.createElement('div');
+                pointsDisplay.className = 'card-points';
+                pointsDisplay.textContent = points;
+                card.appendChild(pointsDisplay);
+            }
+            
+            // Create options button
+            const optionsBtn = document.createElement('div');
+            optionsBtn.className = 'card-options';
+            optionsBtn.innerHTML = '⋯';
+            optionsBtn.addEventListener('click', showOptionsMenu);
+            
+            // Create options menu
+            const optionsMenu = document.createElement('div');
+            optionsMenu.className = 'options-menu';
+            optionsBtn.appendChild(optionsMenu);
+            
+            card.appendChild(optionsBtn);
+            
+            // Add event listeners
+            card.addEventListener('mousedown', startDrag);
+            
+            // Add card to table FIRST
+            table.appendChild(card);
+            
+            // THEN create slots (after card is in DOM)
+            if (size !== 'tiny' && slots && slots !== 'none') {
+                createCardSlots(card, slots);
+            }
+            
+            // Update the menu content based on card state
+            updateCardMenu(card);
+        }
+
+        function createCardSlots(card, slotType) {
+            const cardWidth = card.offsetWidth || getCardWidth(card.dataset.size);
+            const cardHeight = card.offsetHeight || getCardHeight(card.dataset.size);
+            
+            // Slot dimensions (for tiny cards to fit in)
+            const slotWidth = 80;
+            const slotHeight = 116;
+            const margin = 10;
+            
+            if (slotType === 'haven' || slotType === 'both') {
+                const havenSlot = createSlot('haven', slotWidth, slotHeight, margin, margin, card);
+                if (slotType === 'both') {
+                    havenSlot.style.left = margin + 'px';
+                }
+                card.appendChild(havenSlot);
+            }
+            
+            if (slotType === 'prey' || slotType === 'both') {
+                const preySlot = createSlot('prey', slotWidth, slotHeight, margin, margin, card);
+                if (slotType === 'both') {
+                    preySlot.style.right = margin + 'px';
+                    preySlot.style.left = 'auto';
+                } else {
+                    preySlot.style.left = margin + 'px';
+                }
+                card.appendChild(preySlot);
+            }
+        }
+
+        function createSlot(type, width, height, leftPos, bottomPos, parentCard) {
+            if (!parentCard) return null;
+            
+            const slot = document.createElement('div');
+            slot.className = `card-slot ${type}`;
+            slot.style.width = width + 'px';
+            slot.style.height = height + 'px';
+            slot.style.left = leftPos + 'px';
+            slot.style.bottom = bottomPos + 'px';
+            slot.dataset.slotType = type;
+            slot.dataset.maxSize = getSlotMaxSize(parentCard.dataset.size);
+            slot.dataset.rotation = '0';
+            slot.dataset.slotSize = 'tiny'; // Default size
+            
+            // Create edit button
+            const editBtn = document.createElement('div');
+            editBtn.className = 'slot-edit-btn';
+            editBtn.innerHTML = '⚙';
+            editBtn.title = 'Edit Slot';
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleSlotEditMode(slot);
+            });
+            
+            // Create a unique ID for this slot to avoid conflicts
+            const slotId = `slot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            slot.id = slotId;
+            
+            // Create edit controls with size options and rotate
+            const controls = document.createElement('div');
+            controls.className = 'slot-edit-controls';
+            controls.innerHTML = `
+                <span style="font-weight: bold;">Size:</span>
+                <span class="slot-control size-option selected" data-size="tiny" onclick="changeSlotSize(this, 'tiny')">Tiny</span>
+                <span class="slot-control size-option" data-size="small" onclick="changeSlotSize(this, 'small')">Small</span>
+                <span class="slot-control size-option" data-size="big" onclick="changeSlotSize(this, 'big')">Big</span>
+                <span class="slot-control size-option" data-size="huge" onclick="changeSlotSize(this, 'huge')">Huge</span>
+                <span class="slot-control size-option" data-size="giant" onclick="changeSlotSize(this, 'giant')">Giant</span>
+                <span class="slot-control" onclick="rotateSlot90(this)">↻ 90°</span>
+                <span class="slot-control" onclick="finishSlotEdit(this)">✓</span>
+            `;
+            
+            slot.appendChild(editBtn);
+            slot.appendChild(controls);
+            
+            // Add drag functionality for slot positioning
+            slot.addEventListener('mousedown', startSlotDrag);
+            
+            return slot;
+        }
+
+        function startSlotDrag(e) {
+            // Only allow dragging if the slot is in edit mode and we're clicking on the slot itself
+            if (!e.target.classList.contains('card-slot') || !e.target.classList.contains('edit-mode')) {
+                return;
+            }
+            
+            e.stopPropagation();
+            const slot = e.target;
+            const parentCard = slot.closest('.card');
+            
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startLeft = parseFloat(slot.style.left) || 0;
+            const startBottom = parseFloat(slot.style.bottom) || 0;
+            
+            function dragSlot(e) {
+                const deltaX = (e.clientX - startX) / currentZoom;
+                const deltaY = (startY - e.clientY) / currentZoom; // Invert Y for bottom positioning
+                
+                let newLeft = startLeft + deltaX;
+                let newBottom = startBottom + deltaY;
+                
+                // Get slot's actual dimensions and rotation
+                const rotation = parseInt(slot.dataset.rotation) || 0;
+                const originalWidth = parseFloat(slot.style.width) || 80;
+                const originalHeight = parseFloat(slot.style.height) || 116;
+                
+                // Calculate the bounding box dimensions after rotation
+                let boundingWidth, boundingHeight;
+                
+                if (rotation === 0 || rotation === 180) {
+                    // No rotation or 180° rotation - same bounding box
+                    boundingWidth = originalWidth;
+                    boundingHeight = originalHeight;
+                } else if (rotation === 90 || rotation === 270) {
+                    // 90° or 270° rotation - width and height are swapped
+                    boundingWidth = originalHeight;
+                    boundingHeight = originalWidth;
+                } else {
+                    // For other angles, calculate bounding box (though we only use 90° increments)
+                    const radians = (rotation * Math.PI) / 180;
+                    const sin = Math.abs(Math.sin(radians));
+                    const cos = Math.abs(Math.cos(radians));
+                    boundingWidth = originalWidth * cos + originalHeight * sin;
+                    boundingHeight = originalWidth * sin + originalHeight * cos;
+                }
+                
+                // Keep slot within parent card bounds using bounding box dimensions
+                const parentWidth = parentCard.offsetWidth;
+                const parentHeight = parentCard.offsetHeight;
+                
+                // For rotated elements, we need to account for the center point offset
+                const centerOffsetX = (boundingWidth - originalWidth) / 2;
+                const centerOffsetY = (boundingHeight - originalHeight) / 2;
+                
+                newLeft = Math.max(-centerOffsetX, Math.min(newLeft, parentWidth - boundingWidth + centerOffsetX));
+                newBottom = Math.max(-centerOffsetY, Math.min(newBottom, parentHeight - boundingHeight + centerOffsetY));
+                
+                slot.style.left = newLeft + 'px';
+                slot.style.bottom = newBottom + 'px';
+            }
+            
+            function stopSlotDrag() {
+                document.removeEventListener('mousemove', dragSlot);
+                document.removeEventListener('mouseup', stopSlotDrag);
+            }
+            
+            document.addEventListener('mousemove', dragSlot);
+            document.addEventListener('mouseup', stopSlotDrag);
+        }
+
+        function changeSlotSize(element, size) {
+            const slot = element.closest('.card-slot');
+            const controls = element.closest('.slot-edit-controls');
+            
+            // Update selection UI
+            controls.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+            
+            // Get new dimensions
+            const dimensions = getSlotDimensions(size);
+            slot.style.width = dimensions.width + 'px';
+            slot.style.height = dimensions.height + 'px';
+            slot.dataset.slotSize = size;
+        }
+
+        function getSlotDimensions(size) {
+            const dimensions = {
+                tiny: { width: 80, height: 116 },
+                small: { width: 116, height: 170 },
+                big: { width: 170, height: 242 },
+                huge: { width: 242, height: 350 },
+                giant: { width: 350, height: 494 }
+            };
+            return dimensions[size] || dimensions.tiny;
+        }
+
+        function rotateSlot90(element) {
+            const slot = element.closest('.card-slot');
+            const currentRotation = parseInt(slot.dataset.rotation) || 0;
+            const newRotation = (currentRotation + 90) % 360;
+            
+            slot.dataset.rotation = newRotation;
+            slot.style.transform = `rotate(${newRotation}deg)`;
+        }
+
+        function finishSlotEdit(element) {
+            if (!element) return;
+            
+            const slot = element.closest('.card-slot');
+            if (!slot) return;
+            
+            slot.classList.remove('edit-mode');
+            const controls = slot.querySelector('.slot-edit-controls');
+            if (controls) {
+                controls.classList.remove('show');
+            }
+        }
+
+        function toggleSlotEditMode(slot) {
+            if (!slot) return;
+            
+            const isEditMode = slot.classList.contains('edit-mode');
+            
+            // Exit all slot edit modes first
+            document.querySelectorAll('.card-slot.edit-mode').forEach(s => {
+                s.classList.remove('edit-mode');
+                const controls = s.querySelector('.slot-edit-controls');
+                if (controls) {
+                    controls.classList.remove('show');
+                }
+            });
+            
+            if (!isEditMode) {
+                slot.classList.add('edit-mode');
+                const controls = slot.querySelector('.slot-edit-controls');
+                if (controls) {
+                    controls.classList.add('show');
+                    
+                    // Update size selection to match current slot
+                    const currentSize = slot.dataset.slotSize || 'tiny';
+                    controls.querySelectorAll('.size-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                        if (opt.dataset.size === currentSize) {
+                            opt.classList.add('selected');
+                        }
+                    });
+                }
+            }
+        }
+
+
+
+        function enterCardEditMode(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) {
+                console.error('Card not found:', cardId);
+                return;
+            }
+            
+            // Exit edit mode on all other cards first
+            document.querySelectorAll('.card.edit-mode').forEach(c => {
+                if (c && c !== card) {
+                    c.classList.remove('edit-mode');
+                    const controls = c.querySelectorAll('.slot-edit-controls');
+                    if (controls) {
+                        controls.forEach(ctrl => {
+                            if (ctrl) ctrl.classList.remove('show');
+                        });
+                    }
+                    const slots = c.querySelectorAll('.card-slot');
+                    if (slots) {
+                        slots.forEach(slot => {
+                            if (slot) slot.classList.remove('edit-mode');
+                        });
+                    }
+                }
+            });
+            
+            // Enter edit mode for this card
+            card.classList.add('edit-mode');
+            
+            // Update menu safely
+            try {
+                updateCardMenu(card);
+            } catch (error) {
+                console.error('Error updating card menu:', error);
+            }
+            
+            hideAllMenus();
+        }
+
+        function exitCardEditMode(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            card.classList.remove('edit-mode');
+            
+            // Safely exit all slot edit modes
+            card.querySelectorAll('.slot-edit-controls').forEach(ctrl => {
+                if (ctrl) {
+                    ctrl.classList.remove('show');
+                }
+            });
+            
+            card.querySelectorAll('.card-slot').forEach(slot => {
+                if (slot) {
+                    slot.classList.remove('edit-mode');
+                }
+            });
+            
+            updateCardMenu(card);
+            hideAllMenus();
+        }
+
+        function getCardWidth(size) {
+            const sizes = { tiny: 90, small: 126, big: 180, huge: 252, giant: 360 };
+            return sizes[size] || 90;
+        }
+
+        function getCardHeight(size) {
+            const sizes = { tiny: 126, small: 180, big: 252, huge: 360, giant: 504 };
+            return sizes[size] || 126;
+        }
+
+        function getSlotMaxSize(cardSize) {
+            // Cards can hold slots for cards of their size or smaller
+            const sizeOrder = ['tiny', 'small', 'big', 'huge', 'giant'];
+            const cardIndex = sizeOrder.indexOf(cardSize);
+            return cardIndex;
+        }
+
+        function checkSlotHighlights() {
+            if (!draggedCard) return;
+            
+            // Clear all highlights first
+            document.querySelectorAll('.card-slot').forEach(slot => {
+                slot.classList.remove('highlight');
+            });
+            
+            const draggedSize = getSizeIndex(draggedCard.dataset.size);
+            const draggedRect = draggedCard.getBoundingClientRect();
+            
+            // Check all slots on the table
+            document.querySelectorAll('.card-slot').forEach(slot => {
+                const slotCard = slot.closest('.card');
+                if (slotCard === draggedCard) return; // Don't snap to own slots
+                
+                const maxSize = parseInt(slot.dataset.maxSize);
+                if (draggedSize > maxSize) return; // Card too big for this slot
+                
+                const slotRect = slot.getBoundingClientRect();
+                if (isOverlapping(draggedRect, slotRect)) {
+                    slot.classList.add('highlight');
+                }
+            });
+        }
+
+        function updateSlottedCardPositions(hostCard) {
+            // Find all cards that are slotted to this host card
+            Object.keys(slotRelationships).forEach(cardId => {
+                const relationship = slotRelationships[cardId];
+                if (relationship.hostCard === hostCard.id) {
+                    const slottedCard = document.getElementById(cardId);
+                    if (slottedCard) {
+                        // Calculate absolute position based on host card's current position
+                        const hostX = parseFloat(hostCard.style.left) || 0;
+                        const hostY = parseFloat(hostCard.style.top) || 0;
+                        
+                        const newX = hostX + relationship.offsetX;
+                        const newY = hostY + relationship.offsetY;
+                        
+                        slottedCard.style.left = newX + 'px';
+                        slottedCard.style.top = newY + 'px';
+                        
+                        // Maintain the card's rotation relative to the slot
+                        const rotation = relationship.rotation || 0;
+                        slottedCard.style.transform = `rotate(${rotation}deg)`;
+                    }
+                }
+            });
+        }
+
+        function checkForSlotSnap() {
+            if (!draggedCard) return;
+            
+            // Remove any existing slot relationship when dragging starts
+            if (slotRelationships[draggedCard.id]) {
+                delete slotRelationships[draggedCard.id];
+                // Reset card rotation when removed from slot
+                draggedCard.style.transform = '';
+                draggedCard.dataset.rotation = '0';
+            }
+            
+            const draggedSize = getSizeIndex(draggedCard.dataset.size);
+            const draggedRect = draggedCard.getBoundingClientRect();
+            let bestSlot = null;
+            let bestOverlap = 0;
+            
+            // Find the best overlapping slot
+            document.querySelectorAll('.card-slot').forEach(slot => {
+                const slotCard = slot.closest('.card');
+                if (slotCard === draggedCard) return; // Don't snap to own slots
+                
+                const maxSize = parseInt(slot.dataset.maxSize);
+                if (draggedSize > maxSize) return; // Card too big for this slot
+                
+                const slotRect = slot.getBoundingClientRect();
+                const overlap = getOverlapArea(draggedRect, slotRect);
+                
+                if (overlap > bestOverlap) {
+                    bestOverlap = overlap;
+                    bestSlot = slot;
+                }
+            });
+            
+            // Snap to the best slot if overlap is significant
+            if (bestSlot && bestOverlap > 1000) { // Minimum overlap threshold
+                snapToSlot(draggedCard, bestSlot);
+            }
+        }
+
+        function snapToSlot(card, slot) {
+            const slotCard = slot.closest('.card');
+            const slotRect = slot.getBoundingClientRect();
+            const tableRect = document.getElementById('table').getBoundingClientRect();
+            
+            // Calculate the slot's position relative to its parent card
+            const slotLeft = parseFloat(slot.style.left) || 0;
+            const slotTop = parseFloat(slot.style.top) || 0;
+            const slotBottom = parseFloat(slot.style.bottom) || 0;
+            
+            // Get parent card position
+            const parentLeft = parseFloat(slotCard.style.left) || 0;
+            const parentTop = parseFloat(slotCard.style.top) || 0;
+            const parentHeight = slotCard.offsetHeight;
+            
+            // Calculate final position for the dragged card
+            let finalX, finalY;
+            
+            if (slot.style.bottom) {
+                // Positioned from bottom
+                finalX = parentLeft + slotLeft;
+                finalY = parentTop + parentHeight - slotBottom - slot.offsetHeight;
+            } else {
+                // Positioned from top
+                finalX = parentLeft + slotLeft;
+                finalY = parentTop + slotTop;
+            }
+            
+            // Apply the snap position
+            card.style.left = finalX + 'px';
+            card.style.top = finalY + 'px';
+            card.style.zIndex = parseInt(slotCard.style.zIndex) + 1;
+            
+            // Rotate the card to match the slot's rotation
+            const slotRotation = parseInt(slot.dataset.rotation) || 0;
+            card.style.transform = `rotate(${slotRotation}deg)`;
+            card.dataset.rotation = slotRotation;
+            
+            // Track the relationship
+            slotRelationships[card.id] = {
+                hostCard: slotCard.id,
+                slot: slot,
+                offsetX: slotLeft,
+                offsetY: slot.style.bottom ? parentHeight - slotBottom - slot.offsetHeight : slotTop,
+                rotation: slotRotation
+            };
+        }
+
+        function hideSlotHighlights() {
+            document.querySelectorAll('.card-slot').forEach(slot => {
+                slot.classList.remove('highlight');
+            });
+        }
+
+        function isOverlapping(rect1, rect2) {
+            return !(rect1.right < rect2.left || 
+                    rect1.left > rect2.right || 
+                    rect1.bottom < rect2.top || 
+                    rect1.top > rect2.bottom);
+        }
+
+        function getOverlapArea(rect1, rect2) {
+            const left = Math.max(rect1.left, rect2.left);
+            const right = Math.min(rect1.right, rect2.right);
+            const top = Math.max(rect1.top, rect2.top);
+            const bottom = Math.min(rect1.bottom, rect2.bottom);
+            
+            if (left < right && top < bottom) {
+                return (right - left) * (bottom - top);
+            }
+            return 0;
+        }
+
+        function exitSlotEditMode(element) {
+            if (!element) return;
+            
+            const controls = element.closest('.slot-edit-controls');
+            if (controls) {
+                controls.classList.remove('show');
+            }
+        }
+
+        function getSizeIndex(size) {
+            const sizeOrder = ['tiny', 'small', 'big', 'huge', 'giant'];
+            return sizeOrder.indexOf(size);
+        }
+
+        function showAddCardModal() {
+            const modal = document.getElementById('addCardModal');
+            modal.classList.add('show');
+            
+            // Reset selections
+            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('.points-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('.age-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('.slot-btn').forEach(btn => btn.classList.remove('selected'));
+            
+            // Default selections
+            document.querySelector('.size-btn[data-size="tiny"]').classList.add('selected');
+            document.querySelector('.points-btn[data-points=""]').classList.add('selected');
+            document.querySelector('.age-btn[data-age=""]').classList.add('selected');
+            document.querySelector('.slot-btn[data-slots="none"]').classList.add('selected');
+        }
+
+        function hideAddCardModal() {
+            const modal = document.getElementById('addCardModal');
+            modal.classList.remove('show');
+        }
+
+        function createCardFromModal() {
+            const selectedSize = document.querySelector('.size-btn.selected')?.dataset.size;
+            const selectedPoints = document.querySelector('.points-btn.selected')?.dataset.points;
+            const selectedAge = document.querySelector('.age-btn.selected')?.dataset.age;
+            const selectedSlots = document.querySelector('.slot-btn.selected')?.dataset.slots;
+            
+            if (!selectedSize) {
+                alert('Please select a card size');
+                return;
+            }
+            
+            addCard(selectedSize, selectedPoints || null, selectedAge || null, selectedSlots || null);
+            hideAddCardModal();
+        }
+
+        function updateCardMenu(card) {
+            if (!card) return;
+            
+            const optionsMenu = card.querySelector('.options-menu');
+            if (!optionsMenu) return; // Exit safely if no options menu found
+            
+            const isFlipped = card.dataset.flipped === 'true';
+            const isEditMode = card.classList.contains('edit-mode');
+            const hasSlots = card.querySelectorAll('.card-slot').length > 0;
+            
+            let menuHTML = '';
+            
+            if (isEditMode) {
+                // In edit mode - only show exit option
+                menuHTML += `<div class="menu-item" onclick="exitCardEditMode('${card.id}')">Exit Edit Mode</div>`;
+            } else {
+                // Normal mode options
+                
+                // Only show "Exhibit" option if card is face down (flipped)
+                if (isFlipped) {
+                    menuHTML += `<div class="menu-item" onclick="exhibitCard('${card.id}')">Exhibit</div>`;
+                }
+                
+                // Show "Turn Face Down" option if card is face up (not flipped)
+                if (!isFlipped) {
+                    menuHTML += `<div class="menu-item" onclick="turnFaceDown('${card.id}')">Turn Face Down</div>`;
+                }
+                
+                // Show "Enter Edit Mode" if card has slots
+                if (hasSlots) {
+                    menuHTML += `<div class="menu-item" onclick="enterCardEditMode('${card.id}')">Enter Edit Mode</div>`;
+                }
+            }
+            
+            // Always show delete option
+            menuHTML += `<div class="menu-item" onclick="deleteCard('${card.id}')">Delete</div>`;
+            
+            optionsMenu.innerHTML = menuHTML;
+        }
+
+        function showOptionsMenu(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Hide all other open menus
+            document.querySelectorAll('.options-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            
+            const card = e.target.closest('.card');
+            updateCardMenu(card);
+            
+            const menu = e.target.querySelector('.options-menu');
+            if (menu) {
+                menu.classList.add('show');
+            }
+        }
+
+        function exhibitCard(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const isFlipped = card.dataset.flipped === 'true';
+            const cardText = card.querySelector('.card-text');
+            
+            // Only allow exhibiting if card is face down
+            if (isFlipped) {
+                card.className = card.className.replace('back', 'front');
+                cardText.textContent = `${card.dataset.size.toUpperCase()} ${card.id.split('-')[1]}`;
+                card.dataset.flipped = 'false';
+            }
+            
+            // Hide menu
+            hideAllMenus();
+        }
+
+        function turnFaceDown(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const isFlipped = card.dataset.flipped === 'true';
+            const cardText = card.querySelector('.card-text');
+            
+            // Only allow turning face down if card is face up
+            if (!isFlipped) {
+                card.className = card.className.replace('front', 'back');
+                cardText.textContent = '';
+                card.dataset.flipped = 'true';
+            }
+            
+            // Hide menu
+            hideAllMenus();
+        }
+
+        function deleteCard(cardId) {
+            const card = document.getElementById(cardId);
+            if (card) {
+                // Remove any slot relationships involving this card
+                delete slotRelationships[cardId];
+                
+                // Remove relationships where this card was the host
+                Object.keys(slotRelationships).forEach(id => {
+                    if (slotRelationships[id].hostCard === cardId) {
+                        delete slotRelationships[id];
+                    }
+                });
+                
+                card.remove();
+            }
+            hideAllMenus();
+        }
+
+        function hideAllMenus() {
+            document.querySelectorAll('.options-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+        }
+
+        function startDrag(e) {
+            // Don't start drag if clicking on options button or menu
+            if (e.target.classList.contains('card-options') || 
+                e.target.classList.contains('menu-item') ||
+                e.target.closest('.options-menu')) {
+                return;
+            }
+            
+            const card = e.target.closest('.card');
+            if (!card) return;
+            
+            // Don't allow dragging if card is in edit mode
+            if (card.classList.contains('edit-mode')) {
+                return;
+            }
+            
+            const startMouseX = e.clientX;
+            const startMouseY = e.clientY;
+            const dragDelay = 150;
+            let dragTimeout;
+            let isDragging = false;
+            
+            // Store the starting position of the card
+            const startCardX = parseFloat(card.style.left) || 0;
+            const startCardY = parseFloat(card.style.top) || 0;
+
+            hideAllMenus();
+
+            dragTimeout = setTimeout(() => {
+                isDragging = true;
+                draggedCard = card;
+                draggedCard.classList.add('dragging');
+            }, dragDelay);
+
+            function drag(e) {
+                const deltaX = Math.abs(e.clientX - startMouseX);
+                const deltaY = Math.abs(e.clientY - startMouseY);
+                if (!isDragging && (deltaX > 10 || deltaY > 10)) {
+                    clearTimeout(dragTimeout);
+                    isDragging = true;
+                    draggedCard = card;
+                    draggedCard.classList.add('dragging');
+                }
+                
+                if (!isDragging || !draggedCard) return;
+                
+                // Calculate how much the mouse has moved (in screen pixels)
+                const mouseDeltaX = e.clientX - startMouseX;
+                const mouseDeltaY = e.clientY - startMouseY;
+                
+                // Convert the mouse movement to table coordinate movement
+                const tableDeltaX = mouseDeltaX / currentZoom;
+                const tableDeltaY = mouseDeltaY / currentZoom;
+                
+                // Apply the movement to the card's starting position
+                let x = startCardX + tableDeltaX;
+                let y = startCardY + tableDeltaY;
+                
+                // Boundary checking
+                const table = document.getElementById('table');
+                const tableWidth = table.clientWidth;
+                const tableHeight = table.clientHeight;
+                x = Math.max(0, Math.min(x, tableWidth - draggedCard.offsetWidth));
+                y = Math.max(0, Math.min(y, tableHeight - draggedCard.offsetHeight));
+                
+                draggedCard.style.left = x + 'px';
+                draggedCard.style.top = y + 'px';
+                
+                // Update positions of any slotted cards based on new host position
+                updateSlottedCardPositions(draggedCard);
+                
+                checkSlotHighlights();
+            }
+
+            function stopDrag() {
+                clearTimeout(dragTimeout);
+                if (draggedCard) {
+                    draggedCard.classList.remove('dragging');
+                    checkForSlotSnap();
+                    hideSlotHighlights();
+                    draggedCard = null;
+                }
+                isDragging = false;
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', stopDrag);
+            }
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
+        function checkStackingZones() {
+            if (!draggedCard) return;
+            
+            const cards = document.querySelectorAll('.card:not(.dragging)');
+            const draggedSize = draggedCard.dataset.size;
+            
+            cards.forEach(card => {
+                if (card.dataset.size === draggedSize) {
+                    const distance = getDistance(draggedCard, card);
+                    if (distance < 100) {
+                        highlightStackZone(card);
+                    }
+                }
+            });
+        }
+
+        function highlightStackZone(card) {
+            card.style.boxShadow = '0 0 20px #4CAF50';
+            setTimeout(() => {
+                if (card.style) card.style.boxShadow = '2px 2px 8px rgba(0,0,0,0.3)';
+            }, 200);
+        }
+
+        function hideStackingZones() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.style.boxShadow = '2px 2px 8px rgba(0,0,0,0.3)';
+            });
+        }
+
+        function checkForStacking() {
+            if (!draggedCard) return;
+            
+            const cards = document.querySelectorAll('.card:not(.dragging)');
+            const draggedSize = draggedCard.dataset.size;
+            
+            cards.forEach(card => {
+                if (card.dataset.size === draggedSize) {
+                    const distance = getDistance(draggedCard, card);
+                    if (distance < 50) {
+                        stackCards(draggedCard, card);
+                    }
+                }
+            });
+        }
+
+        function stackCards(movingCard, targetCard) {
+            const targetRect = targetCard.getBoundingClientRect();
+            const tableRect = document.getElementById('table').getBoundingClientRect();
+            
+            movingCard.style.left = (targetRect.left - tableRect.left + 5) + 'px';
+            movingCard.style.top = (targetRect.top - tableRect.top - 5) + 'px';
+            movingCard.style.zIndex = parseInt(targetCard.style.zIndex) + 1;
+            
+            movingCard.style.transform = 'rotate(-2deg)';
+            setTimeout(() => {
+                if (movingCard.style) movingCard.style.transform = '';
+            }, 300);
+        }
+
+        function getDistance(card1, card2) {
+            const rect1 = card1.getBoundingClientRect();
+            const rect2 = card2.getBoundingClientRect();
+            
+            const centerX1 = rect1.left + rect1.width / 2;
+            const centerY1 = rect1.top + rect1.height / 2;
+            const centerX2 = rect2.left + rect2.width / 2;
+            const centerY2 = rect2.top + rect2.height / 2;
+            
+            return Math.sqrt(Math.pow(centerX2 - centerX1, 2) + Math.pow(centerY2 - centerY1, 2));
+        }
+
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom + 0.1, 2.0);
+            updateZoom();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom - 0.1, 0.3);
+            updateZoom();
+        }
+
+        function resetZoom() {
+            currentZoom = 1.0;
+            updateZoom();
+        }
+
+        function updateZoom() {
+            const table = document.getElementById('table');
+            table.style.transform = `scale(${currentZoom})`;
+            
+            const zoomLevel = document.getElementById('zoomLevel');
+            zoomLevel.textContent = `${Math.round(currentZoom * 100)}%`;
+        }
+
+        function clearTable() {
+            const table = document.getElementById('table');
+            const cards = table.querySelectorAll('.card');
+            cards.forEach(card => card.remove());
+            cardCounter = 0;
+            stacks = [];
+            slotRelationships = {}; // Clear all slot relationships
+        }
+
+        // Modal interaction handlers
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('size-btn')) {
+                document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+            }
+            
+            if (e.target.classList.contains('points-btn')) {
+                document.querySelectorAll('.points-btn').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+            }
+            
+            if (e.target.classList.contains('age-btn')) {
+                document.querySelectorAll('.age-btn').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+            }
+            
+            if (e.target.classList.contains('slot-btn')) {
+                document.querySelectorAll('.slot-btn').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+            }
+            
+            if (e.target.classList.contains('add-card-modal')) {
+                hideAddCardModal();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.card-options') && !e.target.closest('.options-menu')) {
+                hideAllMenus();
+            }
+        });
+
+        // Scroll wheel zoom
+        document.addEventListener('wheel', function(e) {
+            // Only zoom if not scrolling in a modal or other UI element
+            if (e.target.closest('.add-card-modal') || e.target.closest('.controls') || e.target.closest('.zoom-controls')) {
+                return;
+            }
+            
+            e.preventDefault();
+            
+            if (e.deltaY < 0) {
+                // Scroll up = zoom in
+                currentZoom = Math.min(currentZoom + 0.05, 2.0);
+            } else {
+                // Scroll down = zoom out
+                currentZoom = Math.max(currentZoom - 0.05, 0.3);
+            }
+            
+            updateZoom();
+        }, { passive: false });
+
+        // Initialize with sample cards showing slots
+        addCard('tiny', 3, 'invertebrates');
+        addCard('big', null, 'dinosaurs', 'haven');
+        addCard('huge', 7, 'mammals', 'both');
+    </script>
+</body>
+</html>
