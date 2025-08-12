@@ -1489,18 +1489,29 @@
         }
 
         function getSizeUnits(size, rotation = 0) {
-          const cellW = 90; // base width of a tiny card
-          const cellH = 126; // base height of a tiny card
-          let width = getCardWidth(size);
-          let height = getCardHeight(size);
+          const cellW = getCardWidth("tiny");
+          const cellH = getCardHeight("tiny");
           rotation = parseInt(rotation, 10) % 360;
-          if (rotation === 90 || rotation === 270) {
-            [width, height] = [height, width];
+
+          let w;
+          let h;
+
+          if (size === "small") {
+            // Portrait small cards occupy one tiny width and two tiny heights
+            w = 1;
+            h = 2;
+          } else {
+            const width = getCardWidth(size);
+            const height = getCardHeight(size);
+            w = Math.ceil(width / cellW);
+            h = Math.ceil(height / cellH);
           }
-          return {
-            w: Math.ceil(width / cellW),
-            h: Math.ceil(height / cellH),
-          };
+
+          if (rotation === 90 || rotation === 270) {
+            [w, h] = [h, w];
+          }
+
+          return { w, h };
         }
 
         function createGrid(rows, cols) {
