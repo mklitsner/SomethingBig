@@ -811,13 +811,10 @@
             
             slot.appendChild(editBtn);
             slot.appendChild(controls);
-
+            
             // Add drag functionality for slot positioning
             slot.addEventListener('mousedown', startSlotDrag);
-
-            // Create nested slots for smaller sizes
-            updateNestedSlots(slot);
-
+            
             return slot;
         }
 
@@ -915,7 +912,6 @@
             slot.style.width = dimensions.width + 'px';
             slot.style.height = dimensions.height + 'px';
             slot.dataset.slotSize = size;
-            updateNestedSlots(slot);
         }
 
         function getSlotDimensions(size) {
@@ -929,49 +925,13 @@
             return dimensions[size] || dimensions.tiny;
         }
 
-        function updateNestedSlots(slot) {
-            if (!slot) return;
-
-            // Remove existing nested slots
-            slot.querySelectorAll('.nested-slot').forEach(ns => ns.remove());
-
-            const sizeOrder = ['tiny', 'small', 'big', 'huge', 'giant'];
-            const slotSize = slot.dataset.slotSize || 'tiny';
-            const slotIndex = sizeOrder.indexOf(slotSize);
-            let parent = slot;
-
-            for (let i = slotIndex - 1; i >= 0; i--) {
-                const sizeName = sizeOrder[i];
-                const dims = getSlotDimensions(sizeName);
-                const pWidth = parseFloat(parent.style.width) || parent.offsetWidth;
-                const pHeight = parseFloat(parent.style.height) || parent.offsetHeight;
-
-                const nested = document.createElement('div');
-                nested.className = 'card-slot nested-slot';
-                nested.style.width = dims.width + 'px';
-                nested.style.height = dims.height + 'px';
-                nested.style.left = (pWidth - dims.width) / 2 + 'px';
-                nested.style.top = (pHeight - dims.height) / 2 + 'px';
-                nested.dataset.slotSize = sizeName;
-                nested.dataset.maxSize = slot.dataset.maxSize;
-                nested.dataset.rotation = slot.dataset.rotation || '0';
-
-                parent.appendChild(nested);
-                parent = nested;
-            }
-        }
-
         function rotateSlot90(element) {
             const slot = element.closest('.card-slot');
             const currentRotation = parseInt(slot.dataset.rotation) || 0;
             const newRotation = (currentRotation + 90) % 360;
-
+            
             slot.dataset.rotation = newRotation;
             slot.style.transform = `rotate(${newRotation}deg)`;
-            // Ensure nested slots track rotation
-            slot.querySelectorAll('.nested-slot').forEach(child => {
-                child.dataset.rotation = newRotation;
-            });
         }
 
         function finishSlotEdit(element) {
@@ -1108,19 +1068,17 @@
                 slot.classList.remove('highlight');
             });
             
-            const draggedSizeIndex = getSizeIndex(draggedCard.dataset.size);
+            const draggedSize = getSizeIndex(draggedCard.dataset.size);
             const draggedRect = draggedCard.getBoundingClientRect();
-
+            
             // Check all slots on the table
             document.querySelectorAll('.card-slot').forEach(slot => {
                 const slotCard = slot.closest('.card');
                 if (slotCard === draggedCard) return; // Don't snap to own slots
                 if (slotCard.dataset.flipped === 'true') return; // Ignore slots on face-down cards
 
-                const slotSizeIndex = getSizeIndex(slot.dataset.slotSize);
                 const maxSize = parseInt(slot.dataset.maxSize);
-                if (slotSizeIndex > maxSize) return; // Slot too big for host card
-                if (draggedSizeIndex !== slotSizeIndex) return; // Must match slot size exactly
+                if (draggedSize > maxSize) return; // Card too big for this slot
 
                 const slotRect = slot.getBoundingClientRect();
                 if (isOverlapping(draggedRect, slotRect)) {
@@ -1165,21 +1123,19 @@
                 draggedCard.dataset.rotation = '0';
             }
             
-            const draggedSizeIndex = getSizeIndex(draggedCard.dataset.size);
+            const draggedSize = getSizeIndex(draggedCard.dataset.size);
             const draggedRect = draggedCard.getBoundingClientRect();
             let bestSlot = null;
             let bestOverlap = 0;
-
-            // Find the best overlapping slot of matching size
+            
+            // Find the best overlapping slot
             document.querySelectorAll('.card-slot').forEach(slot => {
                 const slotCard = slot.closest('.card');
                 if (slotCard === draggedCard) return; // Don't snap to own slots
                 if (slotCard.dataset.flipped === 'true') return; // Ignore slots on face-down cards
 
-                const slotSizeIndex = getSizeIndex(slot.dataset.slotSize);
                 const maxSize = parseInt(slot.dataset.maxSize);
-                if (slotSizeIndex > maxSize) return; // Slot too big for host card
-                if (draggedSizeIndex !== slotSizeIndex) return; // Must match slot size exactly
+                if (draggedSize > maxSize) return; // Card too big for this slot
 
                 const slotRect = slot.getBoundingClientRect();
                 const overlap = getOverlapArea(draggedRect, slotRect);
@@ -1189,7 +1145,7 @@
                     bestSlot = slot;
                 }
             });
-
+            
             // Snap to the best slot if overlap is significant
             if (bestSlot && bestOverlap > 1000) { // Minimum overlap threshold
                 snapToSlot(draggedCard, bestSlot);
@@ -1200,28 +1156,46 @@
             const slotCard = slot.closest('.card');
             const slotRect = slot.getBoundingClientRect();
             const tableRect = document.getElementById('table').getBoundingClientRect();
-            const cardRect = slotCard.getBoundingClientRect();
-
-            // Calculate absolute position for the dragged card
-            const finalX = slotRect.left - tableRect.left;
-            const finalY = slotRect.top - tableRect.top;
-
+            
+            // Calculate the slot's position relative to its parent card
+            const slotLeft = parseFloat(slot.style.left) || 0;
+            const slotTop = parseFloat(slot.style.top) || 0;
+            const slotBottom = parseFloat(slot.style.bottom) || 0;
+            
+            // Get parent card position
+            const parentLeft = parseFloat(slotCard.style.left) || 0;
+            const parentTop = parseFloat(slotCard.style.top) || 0;
+            const parentHeight = slotCard.offsetHeight;
+            
+            // Calculate final position for the dragged card
+            let finalX, finalY;
+            
+            if (slot.style.bottom) {
+                // Positioned from bottom
+                finalX = parentLeft + slotLeft;
+                finalY = parentTop + parentHeight - slotBottom - slot.offsetHeight;
+            } else {
+                // Positioned from top
+                finalX = parentLeft + slotLeft;
+                finalY = parentTop + slotTop;
+            }
+            
             // Apply the snap position
             card.style.left = finalX + 'px';
             card.style.top = finalY + 'px';
             card.style.zIndex = parseInt(slotCard.style.zIndex) + 1;
-
+            
             // Rotate the card to match the slot's rotation
             const slotRotation = parseInt(slot.dataset.rotation) || 0;
             card.style.transform = `rotate(${slotRotation}deg)`;
             card.dataset.rotation = slotRotation;
-
-            // Track the relationship relative to host card
+            
+            // Track the relationship
             slotRelationships[card.id] = {
                 hostCard: slotCard.id,
                 slot: slot,
-                offsetX: finalX - (cardRect.left - tableRect.left),
-                offsetY: finalY - (cardRect.top - tableRect.top),
+                offsetX: slotLeft,
+                offsetY: slot.style.bottom ? parentHeight - slotBottom - slot.offsetHeight : slotTop,
                 rotation: slotRotation
             };
         }
