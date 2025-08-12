@@ -836,42 +836,51 @@
                 let newLeft = startLeft + deltaX;
                 let newBottom = startBottom + deltaY;
                 
-                // Get slot's base dimensions
-                const originalWidth = parseFloat(slot.style.width) || 80;
-                const originalHeight = parseFloat(slot.style.height) || 116;
+                // Slot dimensions
+                const width = parseFloat(slot.style.width) || 80;
+                const height = parseFloat(slot.style.height) || 116;
 
-                // Use the actual bounding box (accounts for rotation and zoom)
-                const slotRect = slot.getBoundingClientRect();
-                const boundingWidth = slotRect.width / currentZoom;
-                const boundingHeight = slotRect.height / currentZoom;
-
-                // Keep slot within parent card bounds using bounding box dimensions
+                // Parent card bounds
                 const parentWidth = parentCard.clientWidth;
                 const parentHeight = parentCard.clientHeight;
-                
-                // For rotated elements, we need to account for the center point offset
-                const centerOffsetX = (boundingWidth - originalWidth) / 2;
-                const centerOffsetY = (boundingHeight - originalHeight) / 2;
 
-                let minLeft, maxLeft, minBottom, maxBottom;
-                if (centerOffsetX > 0) {
-                    minLeft = -centerOffsetX;
-                    maxLeft = parentWidth - boundingWidth + centerOffsetX;
-                } else {
-                    minLeft = 0;
-                    maxLeft = parentWidth - boundingWidth;
-                }
+                // Compute slot corner points after rotation and translation
+                const rotation = (parseInt(slot.dataset.rotation) || 0) * Math.PI / 180;
+                const cosA = Math.cos(rotation);
+                const sinA = Math.sin(rotation);
+                const centerX = newLeft + width / 2;
+                const centerY = newBottom + height / 2;
+                const halfW = width / 2;
+                const halfH = height / 2;
 
-                if (centerOffsetY > 0) {
-                    minBottom = -centerOffsetY;
-                    maxBottom = parentHeight - boundingHeight + centerOffsetY;
-                } else {
-                    minBottom = 0;
-                    maxBottom = parentHeight - boundingHeight;
-                }
+                const corners = [
+                    { dx: -halfW, dy: -halfH },
+                    { dx: halfW, dy: -halfH },
+                    { dx: -halfW, dy: halfH },
+                    { dx: halfW, dy: halfH }
+                ].map(({ dx, dy }) => ({
+                    x: centerX + dx * cosA - dy * sinA,
+                    y: centerY + dx * sinA + dy * cosA
+                }));
 
-                newLeft = Math.max(minLeft, Math.min(newLeft, maxLeft));
-                newBottom = Math.max(minBottom, Math.min(newBottom, maxBottom));
+                const xs = corners.map(p => p.x);
+                const ys = corners.map(p => p.y);
+                let minX = Math.min(...xs);
+                let maxX = Math.max(...xs);
+                let minY = Math.min(...ys);
+                let maxY = Math.max(...ys);
+
+                // Adjust position if any corner crosses the parent bounds
+                let adjustX = 0;
+                if (minX < 0) adjustX = -minX;
+                if (maxX + adjustX > parentWidth) adjustX -= (maxX + adjustX - parentWidth);
+
+                let adjustY = 0;
+                if (minY < 0) adjustY = -minY;
+                if (maxY + adjustY > parentHeight) adjustY -= (maxY + adjustY - parentHeight);
+
+                newLeft += adjustX;
+                newBottom += adjustY;
                 
                 slot.style.left = newLeft + 'px';
                 slot.style.bottom = newBottom + 'px';
