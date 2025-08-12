@@ -794,7 +794,7 @@
             // Create a unique ID for this slot to avoid conflicts
             const slotId = `slot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             slot.id = slotId;
-
+            
             // Create edit controls with size options and rotate
             const controls = document.createElement('div');
             controls.className = 'slot-edit-controls';
@@ -808,16 +808,9 @@
                 <span class="slot-control" onclick="rotateSlot90(this)">↻ 90°</span>
                 <span class="slot-control" onclick="finishSlotEdit(this)">✓</span>
             `;
-
-            // Link controls with slot and place them on the parent card
-            const controlsId = `${slotId}-controls`;
-            controls.id = controlsId;
-            controls.dataset.slotId = slotId;
-            slot.dataset.controlsId = controlsId;
-
+            
             slot.appendChild(editBtn);
-            parentCard.appendChild(controls);
-            positionSlotControls(slot);
+            slot.appendChild(controls);
             
             // Add drag functionality for slot positioning
             slot.addEventListener('mousedown', startSlotDrag);
@@ -892,50 +885,33 @@
 
                 newLeft += adjustX;
                 newBottom += adjustY;
-
+                
                 slot.style.left = newLeft + 'px';
                 slot.style.bottom = newBottom + 'px';
-                positionSlotControls(slot);
             }
-
+            
             function stopSlotDrag() {
                 document.removeEventListener('mousemove', dragSlot);
                 document.removeEventListener('mouseup', stopSlotDrag);
-                positionSlotControls(slot);
             }
-
+            
             document.addEventListener('mousemove', dragSlot);
             document.addEventListener('mouseup', stopSlotDrag);
         }
 
-        function positionSlotControls(slot) {
-            if (!slot) return;
-            const controlsId = slot.dataset.controlsId;
-            if (!controlsId) return;
-            const controls = document.getElementById(controlsId);
-            if (!controls) return;
-            const slotRect = slot.getBoundingClientRect();
-            const cardRect = slot.closest('.card').getBoundingClientRect();
-            const left = (slotRect.left - cardRect.left) / currentZoom;
-            const top = (slotRect.top - cardRect.top) / currentZoom - 40;
-            controls.style.left = left + 'px';
-            controls.style.top = top + 'px';
-        }
-
         function changeSlotSize(element, size) {
+            const slot = element.closest('.card-slot');
             const controls = element.closest('.slot-edit-controls');
-            const slot = document.getElementById(controls.dataset.slotId);
-
+            
             // Update selection UI
             controls.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('selected'));
             element.classList.add('selected');
-
+            
             // Get new dimensions
             const dimensions = getSlotDimensions(size);
             slot.style.width = dimensions.width + 'px';
             slot.style.height = dimensions.height + 'px';
             slot.dataset.slotSize = size;
-            positionSlotControls(slot);
         }
 
         function getSlotDimensions(size) {
@@ -950,49 +926,47 @@
         }
 
         function rotateSlot90(element) {
-            const controls = element.closest('.slot-edit-controls');
-            const slot = document.getElementById(controls.dataset.slotId);
+            const slot = element.closest('.card-slot');
             const currentRotation = parseInt(slot.dataset.rotation) || 0;
             const newRotation = (currentRotation + 90) % 360;
-
+            
             slot.dataset.rotation = newRotation;
             slot.style.transform = `rotate(${newRotation}deg)`;
-            positionSlotControls(slot);
         }
 
         function finishSlotEdit(element) {
             if (!element) return;
-
-            const controls = element.closest('.slot-edit-controls');
-            if (!controls) return;
-            const slot = document.getElementById(controls.dataset.slotId);
+            
+            const slot = element.closest('.card-slot');
             if (!slot) return;
-
+            
             slot.classList.remove('edit-mode');
-            controls.classList.remove('show');
+            const controls = slot.querySelector('.slot-edit-controls');
+            if (controls) {
+                controls.classList.remove('show');
+            }
         }
 
         function toggleSlotEditMode(slot) {
             if (!slot) return;
-
+            
             const isEditMode = slot.classList.contains('edit-mode');
-
+            
             // Exit all slot edit modes first
             document.querySelectorAll('.card-slot.edit-mode').forEach(s => {
                 s.classList.remove('edit-mode');
-                const controls = document.getElementById(s.dataset.controlsId);
+                const controls = s.querySelector('.slot-edit-controls');
                 if (controls) {
                     controls.classList.remove('show');
                 }
             });
-
+            
             if (!isEditMode) {
                 slot.classList.add('edit-mode');
-                const controls = document.getElementById(slot.dataset.controlsId);
+                const controls = slot.querySelector('.slot-edit-controls');
                 if (controls) {
                     controls.classList.add('show');
-                    positionSlotControls(slot);
-
+                    
                     // Update size selection to match current slot
                     const currentSize = slot.dataset.slotSize || 'tiny';
                     controls.querySelectorAll('.size-option').forEach(opt => {
@@ -1255,12 +1229,10 @@
 
         function exitSlotEditMode(element) {
             if (!element) return;
-
+            
             const controls = element.closest('.slot-edit-controls');
             if (controls) {
                 controls.classList.remove('show');
-                const slot = document.getElementById(controls.dataset.slotId);
-                if (slot) slot.classList.remove('edit-mode');
             }
         }
 
@@ -1605,10 +1577,9 @@
         function updateZoom() {
             const table = document.getElementById('table');
             table.style.transform = `scale(${currentZoom})`;
-
+            
             const zoomLevel = document.getElementById('zoomLevel');
             zoomLevel.textContent = `${Math.round(currentZoom * 100)}%`;
-            document.querySelectorAll('.card-slot.edit-mode').forEach(slot => positionSlotControls(slot));
         }
 
         function clearTable() {
