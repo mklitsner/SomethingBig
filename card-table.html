@@ -1150,34 +1150,46 @@
             const slotCard = slot.closest('.card');
             const slotRect = slot.getBoundingClientRect();
             const tableRect = document.getElementById('table').getBoundingClientRect();
-
-            const cardWidth = card.offsetWidth;
-            const cardHeight = card.offsetHeight;
-
-            // Calculate the centered position relative to the table
-            const finalX = slotRect.left - tableRect.left + (slotRect.width - cardWidth) / 2;
-            const finalY = slotRect.top - tableRect.top + (slotRect.height - cardHeight) / 2;
-
+            
+            // Calculate the slot's position relative to its parent card
+            const slotLeft = parseFloat(slot.style.left) || 0;
+            const slotTop = parseFloat(slot.style.top) || 0;
+            const slotBottom = parseFloat(slot.style.bottom) || 0;
+            
+            // Get parent card position
+            const parentLeft = parseFloat(slotCard.style.left) || 0;
+            const parentTop = parseFloat(slotCard.style.top) || 0;
+            const parentHeight = slotCard.offsetHeight;
+            
+            // Calculate final position for the dragged card
+            let finalX, finalY;
+            
+            if (slot.style.bottom) {
+                // Positioned from bottom
+                finalX = parentLeft + slotLeft;
+                finalY = parentTop + parentHeight - slotBottom - slot.offsetHeight;
+            } else {
+                // Positioned from top
+                finalX = parentLeft + slotLeft;
+                finalY = parentTop + slotTop;
+            }
+            
             // Apply the snap position
             card.style.left = finalX + 'px';
             card.style.top = finalY + 'px';
             card.style.zIndex = parseInt(slotCard.style.zIndex) + 1;
-
+            
             // Rotate the card to match the slot's rotation
             const slotRotation = parseInt(slot.dataset.rotation) || 0;
             card.style.transform = `rotate(${slotRotation}deg)`;
             card.dataset.rotation = slotRotation;
-
-            // Get parent card position for relationship tracking
-            const parentLeft = parseFloat(slotCard.style.left) || 0;
-            const parentTop = parseFloat(slotCard.style.top) || 0;
-
-            // Track the relationship using centered offsets
+            
+            // Track the relationship
             slotRelationships[card.id] = {
                 hostCard: slotCard.id,
                 slot: slot,
-                offsetX: finalX - parentLeft,
-                offsetY: finalY - parentTop,
+                offsetX: slotLeft,
+                offsetY: slot.style.bottom ? parentHeight - slotBottom - slot.offsetHeight : slotTop,
                 rotation: slotRotation
             };
         }
