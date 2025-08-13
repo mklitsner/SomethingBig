@@ -120,8 +120,8 @@
       }
 
       .card.small {
-        width: 126px; /* 1.75" at 72 DPI */
-        height: 180px; /* 2.5" at 72 DPI */
+        width: 116px; /* 1.75" at 66 DPI */
+        height: 170px; /* 2.5" at 68 DPI */
       }
 
       .card.big {
@@ -1262,14 +1262,14 @@
       }
 
       function getCardWidth(size) {
-        const sizes = { tiny: 90, small: 126, big: 180, huge: 252, giant: 360 };
+        const sizes = { tiny: 90, small: 116, big: 180, huge: 252, giant: 360 };
         return sizes[size] || 90;
       }
 
       function getCardHeight(size) {
         const sizes = {
           tiny: 126,
-          small: 180,
+          small: 170,
           big: 252,
           huge: 360,
           giant: 504,
@@ -1470,8 +1470,10 @@
               );
               highlight.style.left = pos.x - zoneLeft + "px";
               highlight.style.top = pos.y - zoneTop + "px";
-              highlight.style.width = w * 90 + "px";
-              highlight.style.height = h * 126 + "px";
+              const cellW = getCardWidth("tiny");
+              const cellH = getCardHeight("tiny");
+              highlight.style.width = w * cellW + "px";
+              highlight.style.height = h * cellH + "px";
               highlight.style.display = "block";
             } else {
               highlight.style.display = "none";
@@ -1493,10 +1495,17 @@
           const cellH = getCardHeight("tiny");
           rotation = parseInt(rotation, 10) % 360;
 
-          const width = getCardWidth(size);
-          const height = getCardHeight(size);
-          let w = Math.ceil(width / cellW);
-          let h = Math.ceil(height / cellH);
+          let w;
+          let h;
+          if (size === "small") {
+            w = 1;
+            h = 2;
+          } else {
+            const width = getCardWidth(size);
+            const height = getCardHeight(size);
+            w = Math.ceil(width / cellW);
+            h = Math.ceil(height / cellH);
+          }
 
           if (rotation === 90 || rotation === 270) {
             [w, h] = [h, w];
@@ -1542,8 +1551,8 @@
         function getNextLayerSlotPosition(zone, size, rotation = 0) {
           const left = parseFloat(zone.style.left) || 0;
           const top = parseFloat(zone.style.top) || 0;
-          const cellW = 90;
-          const cellH = 126;
+          const cellW = getCardWidth("tiny");
+          const cellH = getCardHeight("tiny");
           const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
           const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
           let layer = 0;
@@ -2113,8 +2122,8 @@
         const ids = zoneCards[zone.id] || [];
         const left = parseFloat(zone.style.left) || 0;
         const top = parseFloat(zone.style.top) || 0;
-        const cellW = 90;
-        const cellH = 126;
+        const cellW = getCardWidth("tiny");
+        const cellH = getCardHeight("tiny");
         const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
         const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
         let layer = 0;
