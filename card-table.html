@@ -114,6 +114,16 @@
         /* transform handled dynamically */
       }
 
+      .card.itsybitsy {
+        width: 45px; /* 1.25" at 72 DPI */
+        height: 63px; /* 1.75" at 72 DPI */
+      }
+
+      .card.teeny {
+        width: 63px; /* 1.25" at 72 DPI */
+        height: 90px; /* 1.75" at 72 DPI */
+      }
+
       .card.tiny {
         width: 90px; /* 1.25" at 72 DPI */
         height: 126px; /* 1.75" at 72 DPI */
@@ -1172,13 +1182,15 @@
 
       function getSlotDimensions(size) {
         const dimensions = {
+          itsybitsy: { width: 35, height: 53 },
+          teeny: { width: 53, height: 80 },
           tiny: { width: 80, height: 116 },
           small: { width: 116, height: 170 },
           big: { width: 170, height: 242 },
           huge: { width: 242, height: 350 },
           giant: { width: 350, height: 494 },
         };
-        return dimensions[size] || dimensions.tiny;
+        return dimensions[size] || dimensions.itsybitsy;
       }
 
       function rotateSlot90(element) {
@@ -1250,7 +1262,7 @@
             controls.classList.add("show");
 
             // Update size selection to match current slot
-            const currentSize = slot.dataset.slotSize || "tiny";
+            const currentSize = slot.dataset.slotSize || "itsybitsy";
             controls.querySelectorAll(".size-option").forEach((opt) => {
               opt.classList.remove("selected");
               if (opt.dataset.size === currentSize) {
@@ -1262,24 +1274,26 @@
       }
 
       function getCardWidth(size) {
-        const sizes = { tiny: 90, small: 126, big: 180, huge: 252, giant: 360 };
-        return sizes[size] || 90;
+        const sizes = { itsybitsy: 45, teeny: 63, tiny: 90, small: 116, big: 180, huge: 252, giant: 360 };
+        return sizes[size] || 45;
       }
 
       function getCardHeight(size) {
         const sizes = {
+          itsybitsy: 63,
+          teeny: 90,
           tiny: 126,
           small: 170,
           big: 252,
           huge: 360,
           giant: 504,
         };
-        return sizes[size] || 126;
+        return sizes[size] || 63;
       }
 
       function getSlotMaxSize(cardSize) {
         // Cards can hold slots for cards of their size or smaller
-        const sizeOrder = ["tiny", "small", "big", "huge", "giant"];
+        const sizeOrder = ["itsybitsy","teeny","tiny", "small", "big", "huge", "giant"];
         const cardIndex = sizeOrder.indexOf(cardSize);
         return cardIndex;
       }
@@ -1470,8 +1484,8 @@
               );
               highlight.style.left = pos.x - zoneLeft + "px";
               highlight.style.top = pos.y - zoneTop + "px";
-              const cellW = getCardWidth("tiny");
-              const cellH = getCardHeight("tiny");
+              const cellW = getCardWidth("itsybitsy");
+              const cellH = getCardHeight("itsybitsy");
               highlight.style.width = w * cellW + "px";
               highlight.style.height = h * cellH + "px";
               highlight.style.display = "block";
@@ -1491,8 +1505,8 @@
         }
 
         function getSizeUnits(size, rotation = 0) {
-          const cellW = getCardWidth("tiny");
-          const cellH = getCardHeight("tiny");
+          const cellW = getCardWidth("itsybitsy");
+          const cellH = getCardHeight("itsybitsy");
           rotation = parseInt(rotation, 10) % 360;
 
           let w;
@@ -1548,8 +1562,8 @@
         function getNextLayerSlotPosition(zone, size, rotation = 0) {
           const left = parseFloat(zone.style.left) || 0;
           const top = parseFloat(zone.style.top) || 0;
-          const cellW = getCardWidth("tiny");
-          const cellH = getCardHeight("tiny");
+          const cellW = getCardWidth("itsybitsy");
+          const cellH = getCardHeight("itsybitsy");
           const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
           const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
           let layer = 0;
@@ -1617,7 +1631,7 @@
       }
 
       function getSizeIndex(size) {
-        const sizeOrder = ["tiny", "small", "big", "huge", "giant"];
+        const sizeOrder = ["itsybitsy","teeny","tiny", "small", "big", "huge", "giant"];
         return sizeOrder.indexOf(size);
       }
 
@@ -2119,8 +2133,8 @@
         const ids = zoneCards[zone.id] || [];
         const left = parseFloat(zone.style.left) || 0;
         const top = parseFloat(zone.style.top) || 0;
-        const cellW = getCardWidth("tiny");
-        const cellH = getCardHeight("tiny");
+        const cellW = getCardWidth("itsybitsy");
+        const cellH = getCardHeight("itsybitsy");
         const cols = Math.max(1, Math.floor(zone.offsetWidth / cellW));
         const rows = Math.max(1, Math.floor(zone.offsetHeight / cellH));
         let layer = 0;
